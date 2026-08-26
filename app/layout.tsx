@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   title: "Mohammad Usman Saud — Full-Stack Developer",
   description:
     "Full-stack developer building production web platforms with React, Next.js, Supabase, and Stripe — from pixel-perfect Figma builds to database-enforced business logic.",
-  metadataBase: new URL("https://mohammadusmansaud.github.io"),
+  metadataBase: new URL("https://bdevelopersstudios-cmd.github.io/portfolio"),
   openGraph: {
     title: "Mohammad Usman Saud — Full-Stack Developer",
     description:

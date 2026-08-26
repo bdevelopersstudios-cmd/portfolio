@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #080b10;
-  --bg-raised: #10151d;
-  --bg-raised-2: #161d27;
-  --line: #232e3b;
-  --line-soft: #19212b;
-  --ink: #eaf1f6;
-  --ink-dim: #a3b3c2;
-  --ink-faint: #5c6c7c;
+  --bg: #1b2432;
+  --bg-raised: #232d3d;
+  --bg-raised-2: #2b3648;
+  --line: #3d4a5e;
+  --line-soft: #2f3a4c;
+  --ink: #eef2f6;
+  --ink-dim: #b3bfcd;
+  --ink-faint: #7c8a9c;
   --accent: #3fd9ec;
   --accent-ink: #04262c;
   --accent-dim: #1f6b78;
@@ -47,6 +47,17 @@
 html {
   scroll-behavior: smooth;
   background: var(--bg);
+  scroll-snap-type: y mandatory;
+  scroll-padding-top: 5rem;
+}
+
+/* Every top-level page section is a direct <section>/<footer> child of
+   <main>/<body> — snapping them here avoids threading a class through
+   each section component. */
+main > section,
+body > footer {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
 }
 
 body {

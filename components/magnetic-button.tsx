@@ -12,7 +12,7 @@ export function MagneticButton({
 }: {
   children: ReactNode;
   href?: string;
-  variant?: "solid" | "outline";
+  variant?: "solid" | "outline" | "outline-light";
   className?: string;
   onClick?: () => void;
 }) {
@@ -32,7 +32,9 @@ export function MagneticButton({
   const styles =
     variant === "solid"
       ? "bg-accent text-accent-ink hover:bg-[#2347d6]"
-      : "border border-line text-ink hover:border-accent hover:text-accent";
+      : variant === "outline-light"
+        ? "border border-white/30 text-white hover:border-white hover:bg-white/10"
+        : "border border-line text-ink hover:border-accent hover:text-accent";
 
   return (
     <motion.a

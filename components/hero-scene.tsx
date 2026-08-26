@@ -5,6 +5,8 @@ import { Canvas, useFrame, type ThreeEvent } from "@react-three/fiber";
 import { Html, OrbitControls, Sparkles } from "@react-three/drei";
 import * as THREE from "three";
 
+const CODE_PALETTE = ["#5ec8ff", "#ff6ec7", "#ffd166", "#7dffb3", "#b39bff"];
+
 function setHoverCursor(hovering: boolean) {
   const el = document.getElementById("hero-3d");
   if (!el) return;
@@ -15,79 +17,111 @@ function setHoverCursor(hovering: boolean) {
 
 type Voxel = { position: THREE.Vector3; scale: number; color: THREE.Color };
 
-function chevronArm(angle: number, length: number, thickness: number) {
-  return {
-    offset: new THREE.Vector2(Math.cos(angle) * length * 0.5, Math.sin(angle) * length * 0.5),
-    rotation: angle,
-    length,
-    thickness,
-  };
-}
-
-// Fills a bar-shaped region (given local length along X, square cross-section)
-// with small jittered cubes, then places them at the bar's world position and
-// rotation — the same building block used for every stroke of the symbol.
-function fillBar(
-  center: THREE.Vector2,
-  rotationZ: number,
-  length: number,
-  thickness: number,
-  pitch: number,
-  color: THREE.Color,
-  out: Voxel[]
-) {
-  const nx = Math.max(2, Math.round(length / pitch));
-  const ny = Math.max(2, Math.round(thickness / pitch));
-  const cos = Math.cos(rotationZ);
-  const sin = Math.sin(rotationZ);
+// A flat slab of voxels — the laptop's base/keyboard deck.
+function buildBaseVoxels(pitch: number, center: THREE.Vector3, width: number, depth: number, thickness: number) {
+  const voxels: Voxel[] = [];
+  const nx = Math.max(2, Math.round(width / pitch));
+  const nz = Math.max(2, Math.round(depth / pitch));
+  const ny = Math.max(1, Math.round(thickness / pitch));
+  const deck = new THREE.Color("#131a24");
 
   for (let ix = 0; ix < nx; ix++) {
-    for (let iy = 0; iy < ny; iy++) {
-      for (let iz = 0; iz < ny; iz++) {
-        if (Math.random() > 0.88) continue;
-        const lx = (ix / (nx - 1) - 0.5) * length;
-        const ly = (iy / (ny - 1) - 0.5) * thickness;
-        const lz = (iz / (ny - 1) - 0.5) * thickness;
-        const wx = center.x + lx * cos - ly * sin;
-        const wy = center.y + lx * sin + ly * cos;
-        out.push({
-          position: new THREE.Vector3(wx, wy, lz),
-          scale: pitch * (0.75 + Math.random() * 0.4),
-          color,
+    for (let iz = 0; iz < nz; iz++) {
+      for (let iy = 0; iy < ny; iy++) {
+        if (Math.random() > 0.82) continue;
+        const lx = (ix / (nx - 1) - 0.5) * width;
+        const lz = (iz / (nz - 1) - 0.5) * depth;
+        const ly = ny > 1 ? (iy / (ny - 1) - 0.5) * thickness : 0;
+        voxels.push({
+          position: new THREE.Vector3(center.x + lx, center.y + ly, center.z + lz),
+          scale: pitch * (0.75 + Math.random() * 0.35),
+          color: deck,
         });
       }
     }
   }
-}
 
-function buildSymbolVoxels(pitch: number) {
-  const voxels: Voxel[] = [];
-  const angle = Math.PI / 5.5;
-  const armLength = 1.15;
-  const thickness = 0.16;
-  const gap = 1.05;
-  const upper = chevronArm(angle, armLength, thickness);
-  const lower = chevronArm(-angle, armLength, thickness);
-
-  const colorFor = (y: number) => {
-    const t = THREE.MathUtils.clamp((y + 0.9) / 1.8, 0, 1);
-    return new THREE.Color("#0d3a52").lerp(new THREE.Color("#8fe3ff"), t);
-  };
-
-  for (const [cx, mirror] of [[-gap, 1] as const, [gap, -1] as const]) {
-    for (const arm of [upper, lower]) {
-      const center = new THREE.Vector2(cx + arm.offset.x * mirror, arm.offset.y);
-      fillBar(center, arm.rotation * mirror, armLength, thickness, pitch, colorFor(arm.offset.y), voxels);
+  // scattered backlit "keys" on the top surface, in a handful of vivid colors
+  const keyCols = 11;
+  const keyRows = 4;
+  for (let r = 0; r < keyRows; r++) {
+    for (let c = 0; c < keyCols; c++) {
+      if (Math.random() > 0.35) continue;
+      const lx = (c / (keyCols - 1) - 0.5) * width * 0.85;
+      const lz = (r / (keyRows - 1) - 0.5) * depth * 0.6;
+      voxels.push({
+        position: new THREE.Vector3(center.x + lx, center.y + thickness * 0.55, center.z + lz),
+        scale: pitch * 0.9,
+        color: new THREE.Color(CODE_PALETTE[(r + c) % CODE_PALETTE.length]),
+      });
     }
   }
-  fillBar(new THREE.Vector2(0, 0), Math.PI / 2.5, armLength * 1.15, thickness * 0.9, pitch, colorFor(0.3), voxels);
 
   return voxels;
 }
 
+// The tilted screen — built from randomized colorful "code line" bands so it
+// reads as a lit-up editor rather than a plain gradient panel.
+function buildScreenVoxels(
+  pitch: number,
+  pivot: THREE.Vector3,
+  tiltX: number,
+  width: number,
+  height: number
+) {
+  const voxels: Voxel[] = [];
+  const cos = Math.cos(tiltX);
+  const sin = Math.sin(tiltX);
+  const rows = 11;
+  const rowHeight = height / rows;
+
+  for (let r = 0; r < rows; r++) {
+    const color = new THREE.Color(CODE_PALETTE[r % CODE_PALETTE.length]);
+    const lineWidthFrac = 0.22 + Math.random() * 0.6;
+    const indentFrac = Math.random() * 0.18;
+    const v = (r + 0.5) / rows;
+    const nx = Math.max(2, Math.round((width * lineWidthFrac) / pitch));
+    const nyThick = Math.max(1, Math.round((rowHeight * 0.55) / pitch));
+    const nzThick = Math.max(1, Math.round(0.05 / pitch));
+
+    for (let ix = 0; ix < nx; ix++) {
+      for (let iy = 0; iy < nyThick; iy++) {
+        for (let iz = 0; iz < nzThick; iz++) {
+          if (Math.random() > 0.9) continue;
+          const u = -0.5 + indentFrac + (ix / Math.max(nx - 1, 1)) * lineWidthFrac;
+          const lx = u * width;
+          const ly0 = v * height + (iy / Math.max(nyThick - 1, 1) - 0.5) * rowHeight * 0.55;
+          const lz0 = (iz / Math.max(nzThick - 1, 1) - 0.5) * 0.05;
+          const ly = ly0 * cos - lz0 * sin;
+          const lz = ly0 * sin + lz0 * cos;
+          voxels.push({
+            position: new THREE.Vector3(pivot.x + lx, pivot.y + ly, pivot.z + lz),
+            scale: pitch * (0.8 + Math.random() * 0.3),
+            color,
+          });
+        }
+      }
+    }
+  }
+  return voxels;
+}
+
+function buildLaptopVoxels(pitch: number) {
+  const baseWidth = 2.7;
+  const baseDepth = 1.5;
+  const baseThickness = 0.14;
+  const baseCenter = new THREE.Vector3(0, -0.25, 0.4);
+  const base = buildBaseVoxels(pitch, baseCenter, baseWidth, baseDepth, baseThickness);
+
+  const hinge = new THREE.Vector3(0, baseCenter.y + baseThickness / 2, baseCenter.z - baseDepth / 2);
+  const screen = buildScreenVoxels(pitch, hinge, -0.22, baseWidth, 1.65);
+
+  return [...base, ...screen];
+}
+
 function buildGroundVoxels(pitch: number) {
   const voxels: Voxel[] = [];
-  const size = 7;
+  const size = 11;
   const n = Math.round(size / pitch);
   const base = new THREE.Color("#071824");
   const rim = new THREE.Color("#123a4d");
@@ -96,17 +130,20 @@ function buildGroundVoxels(pitch: number) {
     for (let iz = 0; iz < n; iz++) {
       // Skip most cells — keeps total instances (and therefore GPU cost) in
       // check while still reading as a dense, dune-like field.
-      if (Math.random() > 0.2) continue;
+      if (Math.random() > 0.18) continue;
       const x = (ix / (n - 1) - 0.5) * size;
       const z = (iz / (n - 1) - 0.5) * size * 0.6 + 1.6;
       const dist = Math.sqrt(x * x + z * z);
       if (dist > size * 0.5) continue;
       const y = -1.35 + Math.sin(x * 1.3) * 0.05 + Math.cos(z * 1.1) * 0.05;
       const fade = THREE.MathUtils.clamp(1 - dist / (size * 0.5), 0, 1);
+      const sparkle = Math.random() < 0.02;
       voxels.push({
         position: new THREE.Vector3(x, y, z),
         scale: pitch * (0.7 + Math.random() * 0.5),
-        color: base.clone().lerp(rim, fade),
+        color: sparkle
+          ? new THREE.Color(CODE_PALETTE[Math.floor(Math.random() * CODE_PALETTE.length)])
+          : base.clone().lerp(rim, fade),
       });
     }
   }
@@ -133,13 +170,15 @@ function VoxelMesh({ voxels }: { voxels: Voxel[] }) {
   return (
     <instancedMesh ref={ref} args={[undefined, undefined, voxels.length]}>
       <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial roughness={0.5} metalness={0.1} toneMapped={false} />
+      {/* Unlit on purpose: color already carries all the shading, and
+          skipping per-pixel lighting matters once this canvas is full-bleed. */}
+      <meshBasicMaterial toneMapped={false} />
     </instancedMesh>
   );
 }
 
-function Symbol({ onToggleTheme, showHint }: { onToggleTheme: () => void; showHint: boolean }) {
-  const voxels = useMemo(() => buildSymbolVoxels(0.06), []);
+function Laptop({ onToggleTheme, showHint }: { onToggleTheme: () => void; showHint: boolean }) {
+  const voxels = useMemo(() => buildLaptopVoxels(0.055), []);
   const group = useRef<THREE.Group>(null);
 
   useFrame(({ clock }) => {
@@ -156,6 +195,7 @@ function Symbol({ onToggleTheme, showHint }: { onToggleTheme: () => void; showHi
   return (
     <group
       ref={group}
+      scale={1.15}
       onClick={handleClick}
       onPointerOver={(e) => {
         e.stopPropagation();
@@ -165,7 +205,7 @@ function Symbol({ onToggleTheme, showHint }: { onToggleTheme: () => void; showHi
     >
       <VoxelMesh voxels={voxels} />
       {showHint && (
-        <Html position={[0, 1.05, 0.2]} center transform={false} zIndexRange={[10, 0]}>
+        <Html position={[0, 0.7, 0.3]} center transform={false} zIndexRange={[10, 0]}>
           <div className="laptop-hint pointer-events-none flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/30 bg-[#0d1a24] px-3 py-1.5 font-mono text-[11px] uppercase tracking-wide text-[#8fe3ff] shadow-lg">
             👆 It&apos;s interactive
           </div>
@@ -182,7 +222,7 @@ function Spark({ accent, onCycleAccent }: { accent: string; onCycleAccent: () =>
   useFrame(({ clock }) => {
     if (ref.current) {
       const t = clock.elapsedTime * 0.6;
-      ref.current.position.set(Math.cos(t) * 1.9, 0.5 + Math.sin(t * 1.4) * 0.3, Math.sin(t) * 1.9);
+      ref.current.position.set(Math.cos(t) * 2.3, 0.6 + Math.sin(t * 1.4) * 0.3, Math.sin(t) * 2.3);
     }
     if (matRef.current) {
       matRef.current.opacity = 0.6 + Math.sin(clock.elapsedTime * 3) * 0.4;
@@ -214,7 +254,7 @@ function Spark({ accent, onCycleAccent }: { accent: string; onCycleAccent: () =>
 }
 
 function Ground() {
-  const voxels = useMemo(() => buildGroundVoxels(0.16), []);
+  const voxels = useMemo(() => buildGroundVoxels(0.2), []);
   return <VoxelMesh voxels={voxels} />;
 }
 
@@ -231,21 +271,24 @@ function Scene({
 }) {
   const parallax = useRef<THREE.Group>(null);
 
-  useFrame(({ pointer }) => {
+  // Handles the idle ambient spin itself (rather than OrbitControls'
+  // autoRotate) so it works identically whether or not OrbitControls is
+  // even mounted — see the note by HeroScene on why touch devices skip it
+  // entirely.
+  useFrame(({ pointer, clock }) => {
     if (parallax.current) {
-      parallax.current.rotation.y = THREE.MathUtils.lerp(parallax.current.rotation.y, pointer.x * 0.25, 0.04);
+      const target = clock.elapsedTime * 0.08 + pointer.x * 0.2;
+      parallax.current.rotation.y = THREE.MathUtils.lerp(parallax.current.rotation.y, target, 0.04);
     }
   });
 
   return (
     <>
       <color attach="background" args={["#081420"]} />
-      <fog attach="fog" args={["#081420", 4, 11]} />
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[3, 4, 2]} intensity={1.1} color="#bfe9ff" />
-      <Sparkles count={40} scale={7} size={1.4} speed={0.15} opacity={0.5} color="#bfe9ff" />
-      <group ref={parallax}>
-        <Symbol onToggleTheme={onToggleTheme} showHint={showHint} />
+      <fog attach="fog" args={["#081420", 5, 14]} />
+      <Sparkles count={50} scale={10} size={1.4} speed={0.15} opacity={0.5} color="#bfe9ff" />
+      <group ref={parallax} position={[2.2, 0, 0]}>
+        <Laptop onToggleTheme={onToggleTheme} showHint={showHint} />
         <Spark accent={accent} onCycleAccent={onCycleAccent} />
       </group>
       <Ground />
@@ -253,17 +296,19 @@ function Scene({
   );
 }
 
-function Controls({ enableDragRotate }: { enableDragRotate: boolean }) {
+function Controls() {
+  // Desktop-only (see HeroScene) — drag-to-orbit. autoRotate is handled by
+  // Scene's own useFrame instead, since OrbitControls attaches touch
+  // listeners that block page-scroll swipes purely by existing, regardless
+  // of its enabled/enableRotate props.
   return (
     <OrbitControls
       enableZoom={false}
       enablePan={false}
-      enableRotate={enableDragRotate}
-      autoRotate
-      autoRotateSpeed={0.5}
+      enableRotate
       rotateSpeed={0.4}
-      minPolarAngle={Math.PI / 2 - 0.35}
-      maxPolarAngle={Math.PI / 2 + 0.2}
+      minPolarAngle={Math.PI / 2 - 0.3}
+      maxPolarAngle={Math.PI / 2 + 0.15}
     />
   );
 }
@@ -280,29 +325,24 @@ export function HeroScene({
   onToggleTheme: () => void;
   onCycleAccent: () => void;
 }) {
-  const [enableDragRotate, setEnableDragRotate] = useState(true);
-
-  useEffect(() => {
-    // Touch-dragging the canvas to rotate the model fights with swiping to
-    // scroll the page — the browser can't tell which gesture is intended,
-    // and the result looks broken. Disabling drag-rotate on coarse pointers
-    // (touch) leaves scrolling exclusively to the page.
-    // matchMedia doesn't exist during the static-export build, so this can
-    // only be read here, not derived at initial state.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setEnableDragRotate(!window.matchMedia("(pointer: coarse)").matches);
-  }, []);
+  // OrbitControls attaches touch listeners that block a page-scroll swipe
+  // starting on the canvas simply by being mounted — its enabled/enableRotate
+  // props don't stop this. So on touch devices it isn't rendered at all;
+  // Scene's own useFrame drives the idle rotation instead either way. This
+  // component is dynamically imported with ssr:false, so it only ever
+  // renders in the browser — matchMedia is safe to read directly here.
+  const [isTouch] = useState(() => window.matchMedia("(pointer: coarse)").matches);
 
   return (
     <Canvas
-      camera={{ position: [0, 0.1, 6.4], fov: 38 }}
-      gl={{ antialias: true }}
-      dpr={[1, 1.5]}
+      camera={{ position: [0, 0.35, 6.4], fov: 40 }}
+      gl={{ antialias: true, powerPreference: "high-performance" }}
+      dpr={[1, 1.4]}
     >
       <Suspense fallback={null}>
         <Scene accent={accent} showHint={showHint} onToggleTheme={onToggleTheme} onCycleAccent={onCycleAccent} />
       </Suspense>
-      <Controls enableDragRotate={enableDragRotate} />
+      {!isTouch && <Controls />}
     </Canvas>
   );
 }

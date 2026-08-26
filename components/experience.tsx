@@ -8,7 +8,7 @@ export function Experience() {
   return (
     <section id="experience" className="border-b border-line-soft py-28 sm:py-36">
       <div className="mx-auto max-w-[1400px] px-6 sm:px-10 lg:px-16">
-        <SectionHeading index="02" label="Experience" title="Four years, four very different rooms." />
+        <SectionHeading index="03" label="Experience" title="Four years, four very different rooms." />
 
         <div className="relative mt-16">
           <div className="absolute left-[7px] top-2 bottom-2 w-px bg-line sm:left-[189px]" />

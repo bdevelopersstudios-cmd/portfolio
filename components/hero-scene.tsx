@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
   ContactShadows,
@@ -52,6 +52,49 @@ function useCodeTexture() {
   }, []);
 }
 
+// A single textured plane reads as a far cleaner keyboard than 40+ individual
+// keycap meshes — cheaper to render (fixes a real performance/rendering glitch
+// on weaker GPUs) and closer to how a product shot actually looks.
+function useKeyboardTexture(accent: string) {
+  return useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 640;
+    canvas.height = 220;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.fillStyle = "#1c2028";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const rows = 4;
+      const cols = 13;
+      const pad = 6;
+      const gap = 4;
+      const cellW = (canvas.width - pad * 2) / cols;
+      const cellH = (canvas.height - pad * 2 - 34) / rows;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const x = pad + c * cellW;
+          const y = pad + r * cellH;
+          const lit = (r + c) % 11 === 0;
+          ctx.fillStyle = lit ? accent : "#2c313b";
+          ctx.beginPath();
+          ctx.roundRect(x + gap / 2, y + gap / 2, cellW - gap, cellH - gap, 3);
+          ctx.fill();
+        }
+      }
+      // spacebar
+      ctx.fillStyle = "#2c313b";
+      ctx.beginPath();
+      ctx.roundRect(pad + cellW * 3, pad + rows * cellH + 4, cellW * 6, 24, 4);
+      ctx.fill();
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }, [accent]);
+}
+
 function setHoverCursor(hovering: boolean) {
   const el = document.getElementById("hero-3d");
   if (!el) return;
@@ -62,7 +105,7 @@ function setHoverCursor(hovering: boolean) {
 
 function CaseMaterial({ color }: { color: string }) {
   return (
-    <meshPhysicalMaterial color={color} roughness={0.28} metalness={0.8} clearcoat={0.7} clearcoatRoughness={0.2} />
+    <meshPhysicalMaterial color={color} roughness={0.25} metalness={0.85} clearcoat={0.8} clearcoatRoughness={0.15} />
   );
 }
 
@@ -83,24 +126,7 @@ function Laptop({
 }) {
   const group = useRef<THREE.Group>(null);
   const codeTexture = useCodeTexture();
-
-  const keys = useMemo(() => {
-    const rows = 4;
-    const cols = 12;
-    const pitch = 0.145;
-    const startX = -((cols - 1) * pitch) / 2;
-    const startZ = -((rows - 1) * pitch) / 2 + 0.2;
-    const list: { pos: [number, number, number]; lit: boolean }[] = [];
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        list.push({
-          pos: [startX + c * pitch, 0, startZ + r * pitch],
-          lit: (r + c) % 9 === 0,
-        });
-      }
-    }
-    return list;
-  }, []);
+  const keyboardTexture = useKeyboardTexture(accent);
 
   useFrame(({ clock }) => {
     if (group.current) {
@@ -124,8 +150,8 @@ function Laptop({
     <group ref={group} rotation={[0.08, -0.32, 0]}>
       {/* base / keyboard deck — click cycles the accent color */}
       <RoundedBox
-        args={[2.1, 0.09, 1.3]}
-        radius={0.045}
+        args={[2.1, 0.08, 1.3]}
+        radius={0.05}
         smoothness={6}
         position={[0, -0.32, 0.15]}
         {...clickable(onCycleAccent)}
@@ -133,6 +159,12 @@ function Laptop({
         <CaseMaterial color={caseColor} />
         <Edges color={accent2} threshold={20} />
       </RoundedBox>
+
+      {/* keyboard */}
+      <mesh position={[0, -0.32 + 0.041, 0.06]} rotation={[-Math.PI / 2, 0, 0]} {...clickable(onCycleAccent)}>
+        <planeGeometry args={[1.85, 0.72]} />
+        <meshBasicMaterial map={keyboardTexture} toneMapped={false} />
+      </mesh>
 
       {/* trackpad */}
       <RoundedBox
@@ -142,56 +174,36 @@ function Laptop({
         position={[0, -0.32 + 0.05, 0.62]}
         {...clickable(onCycleAccent)}
       >
-        <meshPhysicalMaterial color={caseColor} roughness={0.15} metalness={0.5} clearcoat={0.9} />
+        <meshPhysicalMaterial color={caseColor} roughness={0.1} metalness={0.6} clearcoat={0.95} />
         <Edges color={accent2} threshold={20} />
       </RoundedBox>
 
-      {keys.map((k, i) => (
-        <RoundedBox
-          key={i}
-          args={[0.095, 0.035, 0.095]}
-          radius={0.022}
-          smoothness={3}
-          position={[k.pos[0], -0.32 + 0.06, k.pos[2]]}
-          {...clickable(onCycleAccent)}
-        >
-          <meshPhysicalMaterial
-            color="#34393f"
-            roughness={0.55}
-            metalness={0.15}
-            clearcoat={0.3}
-            emissive={k.lit ? accent : "#000000"}
-            emissiveIntensity={k.lit ? 0.9 : 0}
-          />
-        </RoundedBox>
-      ))}
-
       {/* hinge barrel */}
       <mesh position={[0, -0.29, -0.5]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.03, 0.03, 2.02, 20]} />
+        <cylinderGeometry args={[0.028, 0.028, 2.02, 20]} />
         <CaseMaterial color={caseColor} />
       </mesh>
 
       {/* screen, tilted back — click toggles light/dark */}
       <group position={[0, -0.275, -0.5]} rotation={[-0.12, 0, 0]}>
-        <RoundedBox args={[2.1, 1.3, 0.045]} radius={0.04} smoothness={6} position={[0, 0.65, 0]} {...clickable(onToggleTheme)}>
+        <RoundedBox args={[2.1, 1.3, 0.04]} radius={0.05} smoothness={6} position={[0, 0.65, 0]} {...clickable(onToggleTheme)}>
           <CaseMaterial color={caseColor} />
           <Edges color={accent} threshold={20} />
         </RoundedBox>
 
         {/* webcam notch */}
-        <mesh position={[0, 1.22, 0.024]}>
+        <mesh position={[0, 1.22, 0.022]}>
           <circleGeometry args={[0.012, 16]} />
           <meshStandardMaterial color="#000000" roughness={0.3} />
         </mesh>
 
         {/* lid logo, visible from behind */}
-        <mesh position={[0, 0.65, -0.024]} rotation={[0, Math.PI, 0]}>
+        <mesh position={[0, 0.65, -0.022]} rotation={[0, Math.PI, 0]}>
           <ringGeometry args={[0.05, 0.065, 32]} />
           <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.6} />
         </mesh>
 
-        <mesh position={[0, 0.65, 0.026]} {...clickable(onToggleTheme)}>
+        <mesh position={[0, 0.65, 0.024]} {...clickable(onToggleTheme)}>
           <planeGeometry args={[1.98, 1.16]} />
           <meshBasicMaterial map={codeTexture} toneMapped={false} />
         </mesh>
@@ -229,8 +241,8 @@ function TerminalWindow({ accent, accent2 }: { accent: string; accent2: string }
 
   return (
     <group>
-      <RoundedBox args={[1.15, 0.85, 0.04]} radius={0.04} smoothness={6}>
-        <meshPhysicalMaterial color="#171d28" roughness={0.4} metalness={0.4} clearcoat={0.7} />
+      <RoundedBox args={[1.15, 0.85, 0.04]} radius={0.05} smoothness={6}>
+        <meshPhysicalMaterial color="#171d28" roughness={0.35} metalness={0.5} clearcoat={0.8} />
         <Edges color={accent} threshold={20} />
       </RoundedBox>
 
@@ -407,6 +419,19 @@ export function HeroScene({
   onToggleTheme: () => void;
   onCycleAccent: () => void;
 }) {
+  const [enableDragRotate, setEnableDragRotate] = useState(true);
+
+  useEffect(() => {
+    // Touch-dragging the canvas to rotate the model fights with swiping to
+    // scroll the page — the browser can't tell which gesture is intended,
+    // and the result looks broken. Disabling drag-rotate on coarse pointers
+    // (touch) leaves scrolling exclusively to the page; autoRotate still runs.
+    // matchMedia doesn't exist during the static-export build, so this can
+    // only be read here, not derived at initial state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setEnableDragRotate(!window.matchMedia("(pointer: coarse)").matches);
+  }, []);
+
   return (
     <Canvas
       camera={{ position: [0, 0.3, 9], fov: 36 }}
@@ -438,6 +463,7 @@ export function HeroScene({
       <OrbitControls
         enableZoom={false}
         enablePan={false}
+        enableRotate={enableDragRotate}
         autoRotate
         autoRotateSpeed={0.5}
         rotateSpeed={0.4}

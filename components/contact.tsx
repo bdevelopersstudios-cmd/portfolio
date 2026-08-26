@@ -22,7 +22,7 @@ export function Contact() {
     <section id="contact" className="py-28 sm:py-40">
       <div className="mx-auto max-w-[1400px] px-6 sm:px-10 lg:px-16">
         <div className="flex items-center gap-3 font-mono text-xs uppercase tracking-[0.2em] text-accent">
-          <span className="text-ink-faint">04</span>
+          <span className="text-ink-faint">05</span>
           <span className="h-px w-8 bg-line" />
           <span>Contact</span>
         </div>

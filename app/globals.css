@@ -20,6 +20,20 @@
   --font-mono: "IBM Plex Mono", monospace;
 }
 
+/* Toggled from the hero's 3D laptop screen — see theme-provider.tsx.
+   --accent/--accent-2/--accent-dim are set inline by JS instead (accent
+   cycling), independent of light/dark. */
+html[data-theme="dark"] {
+  --bg: #12161d;
+  --bg-raised: #1a212b;
+  --bg-raised-2: #222b37;
+  --line: #333e4d;
+  --line-soft: #262f3b;
+  --ink: #eef2f6;
+  --ink-dim: #a9b6c4;
+  --ink-faint: #67748a;
+}
+
 @theme inline {
   --color-bg: var(--bg);
   --color-bg-raised: var(--bg-raised);
@@ -49,6 +63,13 @@ html {
   background: var(--bg);
 }
 
+/* Faint site-wide dot grid — a quiet technical texture rather than a
+   flat fill. Reuses --line so it stays exactly as subtle as a hairline. */
+.dot-grid {
+  background-image: radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0);
+  background-size: 28px 28px;
+}
+
 body {
   background: var(--bg);
   color: var(--ink);
@@ -56,6 +77,7 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
+  transition: background-color 0.5s ease, color 0.5s ease;
 }
 
 ::selection {

@@ -9,10 +9,11 @@ import { Footer } from "@/components/footer";
 import { Cursor } from "@/components/cursor";
 import { Grain } from "@/components/grain";
 import { SmoothScroll } from "@/components/smooth-scroll";
+import { ThemeProvider } from "@/components/theme-provider";
 
 export default function Home() {
   return (
-    <>
+    <ThemeProvider>
       <SmoothScroll />
       <Grain />
       <Cursor />
@@ -26,6 +27,6 @@ export default function Home() {
         <Contact />
       </main>
       <Footer />
-    </>
+    </ThemeProvider>
   );
 }

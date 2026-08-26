@@ -4,6 +4,8 @@ import dynamic from "next/dynamic";
 import { motion } from "motion/react";
 import { profile } from "@/lib/data";
 import { MagneticButton } from "@/components/magnetic-button";
+import { VectorBackground } from "@/components/vector-background";
+import { useTheme } from "@/components/theme-provider";
 
 const HeroScene = dynamic(() => import("@/components/hero-scene").then((m) => m.HeroScene), {
   ssr: false,
@@ -12,12 +14,15 @@ const HeroScene = dynamic(() => import("@/components/hero-scene").then((m) => m.
 const headlineWords = ["Full-stack", "products,", "built", "end", "to", "end."];
 
 export function Hero() {
+  const { theme, accent, toggleTheme, cycleAccent } = useTheme();
+
   return (
     <section
       id="top"
       className="relative flex min-h-[100svh] w-full items-center overflow-hidden border-b border-line-soft"
     >
-      <div className="mx-auto grid max-w-[1400px] grid-cols-1 items-center gap-4 px-6 py-28 sm:px-10 md:grid-cols-[1.1fr_0.9fr] md:gap-6 md:py-24 lg:px-16">
+      <VectorBackground />
+      <div className="relative mx-auto grid max-w-[1400px] grid-cols-1 items-center gap-4 px-6 py-28 sm:px-10 md:grid-cols-[1.1fr_0.9fr] md:gap-6 md:py-24 lg:px-16">
         <div className="relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -72,8 +77,27 @@ export function Hero() {
           </motion.div>
         </div>
 
-        <div className="relative z-0 mx-auto h-[240px] w-full sm:h-[320px] md:h-[min(52vh,420px)]">
-          <HeroScene />
+        <div className="relative z-0 flex flex-col items-center">
+          <div
+            id="hero-3d"
+            className="mx-auto h-[220px] w-full sm:h-[300px] md:h-[min(48vh,400px)]"
+          >
+            <HeroScene
+              theme={theme}
+              accent={accent.accent}
+              accent2={accent.accent2}
+              onToggleTheme={toggleTheme}
+              onCycleAccent={cycleAccent}
+            />
+          </div>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 1.4 }}
+            className="pointer-events-none mt-2 text-center font-mono text-[10px] uppercase tracking-[0.15em] text-ink-faint"
+          >
+            Click the laptop — screen swaps theme, keys swap accent
+          </motion.p>
         </div>
       </div>
 

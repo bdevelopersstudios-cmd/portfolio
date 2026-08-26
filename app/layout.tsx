@@ -31,13 +31,40 @@ export const metadata: Metadata = {
   },
 };
 
+// Mirrors lib/theme.ts's ACCENTS — inlined because this runs before hydration,
+// ahead of any JS bundle, to avoid a flash of the default theme/accent.
+const THEME_INIT_SCRIPT = `
+(function () {
+  try {
+    var theme = localStorage.getItem("portfolio-theme");
+    var accentIndex = localStorage.getItem("portfolio-accent");
+    var accents = [
+      ["#2f5eff", "#ff7a45", "#2347d6"],
+      ["#7c3aed", "#a3e635", "#6425c9"],
+      ["#059669", "#f59e0b", "#047a54"],
+      ["#e11d48", "#06b6d4", "#b3123a"]
+    ];
+    var idx = accents[accentIndex] ? Number(accentIndex) : 0;
+    if (theme === "dark") document.documentElement.setAttribute("data-theme", "dark");
+    var root = document.documentElement.style;
+    root.setProperty("--accent", accents[idx][0]);
+    root.setProperty("--accent-2", accents[idx][1]);
+    root.setProperty("--accent-dim", accents[idx][2]);
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
       className={`${spaceGrotesk.variable} ${manrope.variable} ${plexMono.variable}`}
+      suppressHydrationWarning
     >
-      <body>{children}</body>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
+      <body className="dot-grid">{children}</body>
     </html>
   );
 }

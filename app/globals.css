@@ -126,6 +126,20 @@ html {
   mix-blend-mode: multiply;
 }
 
+@keyframes laptop-hint-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.laptop-hint {
+  animation: laptop-hint-bounce 1.6s ease-in-out infinite;
+}
+
 @keyframes marquee {
   from {
     transform: translateX(0);

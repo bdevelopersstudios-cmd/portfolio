@@ -16,3 +16,4 @@ export const ACCENTS: AccentDef[] = [
 
 export const THEME_STORAGE_KEY = "portfolio-theme";
 export const ACCENT_STORAGE_KEY = "portfolio-accent";
+export const DISCOVERED_STORAGE_KEY = "portfolio-laptop-discovered";

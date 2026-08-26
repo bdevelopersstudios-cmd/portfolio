@@ -14,7 +14,7 @@ const HeroScene = dynamic(() => import("@/components/hero-scene").then((m) => m.
 const headlineWords = ["Full-stack", "products,", "built", "end", "to", "end."];
 
 export function Hero() {
-  const { theme, accent, toggleTheme, cycleAccent } = useTheme();
+  const { theme, accent, hasDiscoveredLaptop, toggleTheme, cycleAccent } = useTheme();
 
   return (
     <section
@@ -86,17 +86,25 @@ export function Hero() {
               theme={theme}
               accent={accent.accent}
               accent2={accent.accent2}
+              showHint={!hasDiscoveredLaptop}
               onToggleTheme={toggleTheme}
               onCycleAccent={cycleAccent}
             />
           </div>
           <motion.p
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 1.4 }}
-            className="pointer-events-none mt-2 text-center font-mono text-[10px] uppercase tracking-[0.15em] text-ink-faint"
+            animate={{ opacity: 1, scale: hasDiscoveredLaptop ? 1 : [1, 1.06, 1] }}
+            transition={{
+              opacity: { duration: 0.6, delay: 1.4 },
+              scale: { duration: 1.6, repeat: hasDiscoveredLaptop ? 0 : Infinity, ease: "easeInOut" },
+            }}
+            className={`pointer-events-none mt-2 text-center font-mono text-[11px] uppercase tracking-[0.15em] ${
+              hasDiscoveredLaptop ? "text-ink-faint" : "font-semibold text-accent"
+            }`}
           >
-            Click the laptop — screen swaps theme, keys swap accent
+            {hasDiscoveredLaptop
+              ? "Click the laptop — screen swaps theme, keys swap accent"
+              : "👆 It's interactive — click the laptop"}
           </motion.p>
         </div>
       </div>

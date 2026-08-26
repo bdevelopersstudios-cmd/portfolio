@@ -6,6 +6,7 @@ import {
   ContactShadows,
   Edges,
   Environment,
+  Html,
   OrbitControls,
   RoundedBox,
 } from "@react-three/drei";
@@ -61,7 +62,7 @@ function setHoverCursor(hovering: boolean) {
 
 function CaseMaterial({ color }: { color: string }) {
   return (
-    <meshPhysicalMaterial color={color} roughness={0.32} metalness={0.75} clearcoat={0.6} clearcoatRoughness={0.25} />
+    <meshPhysicalMaterial color={color} roughness={0.28} metalness={0.8} clearcoat={0.7} clearcoatRoughness={0.2} />
   );
 }
 
@@ -69,12 +70,14 @@ function Laptop({
   caseColor,
   accent,
   accent2,
+  showHint,
   onToggleTheme,
   onCycleAccent,
 }: {
   caseColor: string;
   accent: string;
   accent2: string;
+  showHint: boolean;
   onToggleTheme: () => void;
   onCycleAccent: () => void;
 }) {
@@ -83,16 +86,16 @@ function Laptop({
 
   const keys = useMemo(() => {
     const rows = 4;
-    const cols = 11;
-    const pitch = 0.155;
+    const cols = 12;
+    const pitch = 0.145;
     const startX = -((cols - 1) * pitch) / 2;
-    const startZ = -((rows - 1) * pitch) / 2 + 0.28;
+    const startZ = -((rows - 1) * pitch) / 2 + 0.2;
     const list: { pos: [number, number, number]; lit: boolean }[] = [];
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         list.push({
           pos: [startX + c * pitch, 0, startZ + r * pitch],
-          lit: (r + c) % 8 === 0,
+          lit: (r + c) % 9 === 0,
         });
       }
     }
@@ -105,44 +108,52 @@ function Laptop({
     }
   });
 
+  const clickable = (handler: () => void) => ({
+    onClick: (e: { stopPropagation: () => void }) => {
+      e.stopPropagation();
+      handler();
+    },
+    onPointerOver: (e: { stopPropagation: () => void }) => {
+      e.stopPropagation();
+      setHoverCursor(true);
+    },
+    onPointerOut: () => setHoverCursor(false),
+  });
+
   return (
     <group ref={group} rotation={[0.08, -0.32, 0]}>
       {/* base / keyboard deck — click cycles the accent color */}
       <RoundedBox
         args={[2.1, 0.09, 1.3]}
-        radius={0.035}
-        smoothness={4}
+        radius={0.045}
+        smoothness={6}
         position={[0, -0.32, 0.15]}
-        onClick={(e) => {
-          e.stopPropagation();
-          onCycleAccent();
-        }}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          setHoverCursor(true);
-        }}
-        onPointerOut={() => setHoverCursor(false)}
+        {...clickable(onCycleAccent)}
       >
         <CaseMaterial color={caseColor} />
+        <Edges color={accent2} threshold={20} />
+      </RoundedBox>
+
+      {/* trackpad */}
+      <RoundedBox
+        args={[0.62, 0.01, 0.24]}
+        radius={0.02}
+        smoothness={3}
+        position={[0, -0.32 + 0.05, 0.62]}
+        {...clickable(onCycleAccent)}
+      >
+        <meshPhysicalMaterial color={caseColor} roughness={0.15} metalness={0.5} clearcoat={0.9} />
         <Edges color={accent2} threshold={20} />
       </RoundedBox>
 
       {keys.map((k, i) => (
         <RoundedBox
           key={i}
-          args={[0.1, 0.035, 0.1]}
-          radius={0.015}
-          smoothness={2}
+          args={[0.095, 0.035, 0.095]}
+          radius={0.022}
+          smoothness={3}
           position={[k.pos[0], -0.32 + 0.06, k.pos[2]]}
-          onClick={(e) => {
-            e.stopPropagation();
-            onCycleAccent();
-          }}
-          onPointerOver={(e) => {
-            e.stopPropagation();
-            setHoverCursor(true);
-          }}
-          onPointerOut={() => setHoverCursor(false)}
+          {...clickable(onCycleAccent)}
         >
           <meshPhysicalMaterial
             color="#34393f"
@@ -155,41 +166,43 @@ function Laptop({
         </RoundedBox>
       ))}
 
-      {/* hinge + screen, tilted back — click toggles light/dark */}
+      {/* hinge barrel */}
+      <mesh position={[0, -0.29, -0.5]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.03, 0.03, 2.02, 20]} />
+        <CaseMaterial color={caseColor} />
+      </mesh>
+
+      {/* screen, tilted back — click toggles light/dark */}
       <group position={[0, -0.275, -0.5]} rotation={[-0.12, 0, 0]}>
-        <RoundedBox
-          args={[2.1, 1.3, 0.05]}
-          radius={0.03}
-          smoothness={4}
-          position={[0, 0.65, 0]}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleTheme();
-          }}
-          onPointerOver={(e) => {
-            e.stopPropagation();
-            setHoverCursor(true);
-          }}
-          onPointerOut={() => setHoverCursor(false)}
-        >
+        <RoundedBox args={[2.1, 1.3, 0.045]} radius={0.04} smoothness={6} position={[0, 0.65, 0]} {...clickable(onToggleTheme)}>
           <CaseMaterial color={caseColor} />
           <Edges color={accent} threshold={20} />
         </RoundedBox>
-        <mesh
-          position={[0, 0.65, 0.028]}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleTheme();
-          }}
-          onPointerOver={(e) => {
-            e.stopPropagation();
-            setHoverCursor(true);
-          }}
-          onPointerOut={() => setHoverCursor(false)}
-        >
-          <planeGeometry args={[1.9, 1.1]} />
+
+        {/* webcam notch */}
+        <mesh position={[0, 1.22, 0.024]}>
+          <circleGeometry args={[0.012, 16]} />
+          <meshStandardMaterial color="#000000" roughness={0.3} />
+        </mesh>
+
+        {/* lid logo, visible from behind */}
+        <mesh position={[0, 0.65, -0.024]} rotation={[0, Math.PI, 0]}>
+          <ringGeometry args={[0.05, 0.065, 32]} />
+          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.6} />
+        </mesh>
+
+        <mesh position={[0, 0.65, 0.026]} {...clickable(onToggleTheme)}>
+          <planeGeometry args={[1.98, 1.16]} />
           <meshBasicMaterial map={codeTexture} toneMapped={false} />
         </mesh>
+
+        {showHint && (
+          <Html position={[0, 1.42, 0.1]} center transform={false} zIndexRange={[10, 0]}>
+            <div className="laptop-hint pointer-events-none flex items-center gap-1.5 whitespace-nowrap rounded-full border border-accent/40 bg-bg px-3 py-1.5 font-mono text-[11px] uppercase tracking-wide text-accent shadow-lg">
+              👆 It&apos;s interactive
+            </div>
+          </Html>
+        )}
       </group>
     </group>
   );
@@ -216,7 +229,7 @@ function TerminalWindow({ accent, accent2 }: { accent: string; accent2: string }
 
   return (
     <group>
-      <RoundedBox args={[1.15, 0.85, 0.04]} radius={0.04} smoothness={4}>
+      <RoundedBox args={[1.15, 0.85, 0.04]} radius={0.04} smoothness={6}>
         <meshPhysicalMaterial color="#171d28" roughness={0.4} metalness={0.4} clearcoat={0.7} />
         <Edges color={accent} threshold={20} />
       </RoundedBox>
@@ -269,26 +282,26 @@ function CodeBrackets({ accent, accent2 }: { accent: string; accent2: string }) 
   return (
     <group>
       <group position={[-0.55, 0, 0]}>
-        <RoundedBox args={upper.args} radius={0.03} smoothness={2} position={upper.position} rotation={upper.rotation}>
+        <RoundedBox args={upper.args} radius={0.03} smoothness={3} position={upper.position} rotation={upper.rotation}>
           <BracketMaterial color={accent} />
         </RoundedBox>
-        <RoundedBox args={lower.args} radius={0.03} smoothness={2} position={lower.position} rotation={lower.rotation}>
+        <RoundedBox args={lower.args} radius={0.03} smoothness={3} position={lower.position} rotation={lower.rotation}>
           <BracketMaterial color={accent} />
         </RoundedBox>
       </group>
       <RoundedBox
         args={[0.62, thickness * 0.85, thickness * 0.85]}
         radius={0.025}
-        smoothness={2}
+        smoothness={3}
         rotation={[0, 0, Math.PI / 2.6]}
       >
         <BracketMaterial color={accent2} />
       </RoundedBox>
       <group position={[0.55, 0, 0]} scale={[-1, 1, 1]}>
-        <RoundedBox args={upper.args} radius={0.03} smoothness={2} position={upper.position} rotation={upper.rotation}>
+        <RoundedBox args={upper.args} radius={0.03} smoothness={3} position={upper.position} rotation={upper.rotation}>
           <BracketMaterial color={accent} />
         </RoundedBox>
-        <RoundedBox args={lower.args} radius={0.03} smoothness={2} position={lower.position} rotation={lower.rotation}>
+        <RoundedBox args={lower.args} radius={0.03} smoothness={3} position={lower.position} rotation={lower.rotation}>
           <BracketMaterial color={accent} />
         </RoundedBox>
       </group>
@@ -336,12 +349,14 @@ function Composition({
   theme,
   accent,
   accent2,
+  showHint,
   onToggleTheme,
   onCycleAccent,
 }: {
   theme: ThemeMode;
   accent: string;
   accent2: string;
+  showHint: boolean;
   onToggleTheme: () => void;
   onCycleAccent: () => void;
 }) {
@@ -362,6 +377,7 @@ function Composition({
           caseColor={caseColor}
           accent={accent}
           accent2={accent2}
+          showHint={showHint}
           onToggleTheme={onToggleTheme}
           onCycleAccent={onCycleAccent}
         />
@@ -380,12 +396,14 @@ export function HeroScene({
   theme,
   accent,
   accent2,
+  showHint,
   onToggleTheme,
   onCycleAccent,
 }: {
   theme: ThemeMode;
   accent: string;
   accent2: string;
+  showHint: boolean;
   onToggleTheme: () => void;
   onCycleAccent: () => void;
 }) {
@@ -405,6 +423,7 @@ export function HeroScene({
         theme={theme}
         accent={accent}
         accent2={accent2}
+        showHint={showHint}
         onToggleTheme={onToggleTheme}
         onCycleAccent={onCycleAccent}
       />

@@ -14,11 +14,11 @@ export function Skills() {
       </div>
 
       <div className="relative mt-14 overflow-hidden border-y border-line-soft py-5">
-        <div className="marquee-track flex w-max gap-10 font-display text-3xl italic text-ink-faint sm:text-4xl">
+        <div className="marquee-track flex w-max gap-10 font-display text-3xl text-ink-faint sm:text-4xl">
           {[...marqueeItems, ...marqueeItems].map((s, i) => (
             <span key={i} className="flex items-center gap-10">
               {s}
-              <span className="text-accent not-italic">&bull;</span>
+              <span className="text-accent">&bull;</span>
             </span>
           ))}
         </div>

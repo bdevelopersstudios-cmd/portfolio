@@ -34,7 +34,7 @@ export function Contact() {
           transition={{ duration: 0.6 }}
           className="mt-6 max-w-3xl font-display text-4xl leading-[1.05] text-balance sm:text-6xl md:text-7xl"
         >
-          Have something worth <span className="italic text-accent">building?</span>
+          Have something worth <span className="text-accent">building?</span>
         </motion.h2>
 
         <motion.p

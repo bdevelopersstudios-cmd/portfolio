@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #0c0b0a;
-  --bg-raised: #151310;
-  --bg-raised-2: #1c1916;
-  --line: #2c2723;
-  --line-soft: #211d19;
-  --ink: #f4efe6;
-  --ink-dim: #b8b0a3;
-  --ink-faint: #726a5e;
-  --accent: #f2a63d;
-  --accent-ink: #1a1408;
-  --accent-dim: #8a6a35;
-  --teal: #4f9d92;
+  --bg: #080b10;
+  --bg-raised: #10151d;
+  --bg-raised-2: #161d27;
+  --line: #232e3b;
+  --line-soft: #19212b;
+  --ink: #eaf1f6;
+  --ink-dim: #a3b3c2;
+  --ink-faint: #5c6c7c;
+  --accent: #3fd9ec;
+  --accent-ink: #04262c;
+  --accent-dim: #1f6b78;
+  --accent-2: #7c8cf8;
 
-  --font-display: "Fraunces", serif;
+  --font-display: "Space Grotesk", sans-serif;
   --font-body: "Manrope", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
 }
@@ -31,7 +31,7 @@
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
   --color-accent-dim: var(--accent-dim);
-  --color-teal: var(--teal);
+  --color-accent-2: var(--accent-2);
 
   --font-display: var(--font-display);
   --font-body: var(--font-body);

@@ -39,7 +39,7 @@ export function Hero() {
                   initial={{ y: "110%" }}
                   animate={{ y: "0%" }}
                   transition={{ duration: 0.7, delay: 0.15 + i * 0.06, ease: [0.22, 1, 0.36, 1] }}
-                  className={`inline-block ${word === "products," ? "italic text-accent" : ""}`}
+                  className={`inline-block ${word === "products," ? "text-accent" : ""}`}
                 >
                   {word}
                 </motion.span>

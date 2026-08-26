@@ -15,7 +15,7 @@ export function TiltCard({ children, className = "" }: { children: ReactNode; cl
   const glowY = useTransform(y, [0, 1], ["0%", "100%"]);
   const glowBackground = useTransform(
     [glowX, glowY],
-    ([gx, gy]) => `radial-gradient(320px circle at ${gx} ${gy}, rgba(242,166,61,0.14), transparent 70%)`
+    ([gx, gy]) => `radial-gradient(320px circle at ${gx} ${gy}, rgba(63,217,236,0.14), transparent 70%)`
   );
 
   const handleMove = (e: MouseEvent<HTMLDivElement>) => {

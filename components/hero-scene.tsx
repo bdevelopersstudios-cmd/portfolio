@@ -1,16 +1,9 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import {
-  ContactShadows,
-  Environment,
-  Html,
-  OrbitControls,
-  RoundedBox,
-} from "@react-three/drei";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Canvas, useFrame, type ThreeEvent } from "@react-three/fiber";
+import { Html, OrbitControls, Sparkles } from "@react-three/drei";
 import * as THREE from "three";
-import type { ThemeMode } from "@/lib/theme";
 
 function setHoverCursor(hovering: boolean) {
   const el = document.getElementById("hero-3d");
@@ -20,108 +13,160 @@ function setHoverCursor(hovering: boolean) {
   document.body.style.cursor = hovering ? "pointer" : "";
 }
 
-function clickable(handler: () => void) {
-  return {
-    onClick: (e: { stopPropagation: () => void }) => {
-      e.stopPropagation();
-      handler();
-    },
-    onPointerOver: (e: { stopPropagation: () => void }) => {
-      e.stopPropagation();
-      setHoverCursor(true);
-    },
-    onPointerOut: () => setHoverCursor(false),
-  };
-}
-
-function GlassMaterial({ color }: { color: string }) {
-  return (
-    <meshPhysicalMaterial
-      color={color}
-      roughness={0.12}
-      metalness={0.3}
-      clearcoat={1}
-      clearcoatRoughness={0.06}
-      transmission={0.15}
-      ior={1.4}
-    />
-  );
-}
+type Voxel = { position: THREE.Vector3; scale: number; color: THREE.Color };
 
 function chevronArm(angle: number, length: number, thickness: number) {
   return {
-    position: [(Math.cos(angle) * length) / 2, (Math.sin(angle) * length) / 2, 0] as [
-      number,
-      number,
-      number,
-    ],
-    rotation: [0, 0, angle] as [number, number, number],
-    args: [length, thickness, thickness] as [number, number, number],
+    offset: new THREE.Vector2(Math.cos(angle) * length * 0.5, Math.sin(angle) * length * 0.5),
+    rotation: angle,
+    length,
+    thickness,
   };
 }
 
-// The hero object IS the symbol — a large "</>" rather than a device that
-// merely displays code. Bold, simple to render well, and unambiguous.
-function CodeSymbol({
-  accent,
-  accent2,
-  showHint,
-  onToggleTheme,
-}: {
-  accent: string;
-  accent2: string;
-  showHint: boolean;
-  onToggleTheme: () => void;
-}) {
-  const group = useRef<THREE.Group>(null);
+// Fills a bar-shaped region (given local length along X, square cross-section)
+// with small jittered cubes, then places them at the bar's world position and
+// rotation — the same building block used for every stroke of the symbol.
+function fillBar(
+  center: THREE.Vector2,
+  rotationZ: number,
+  length: number,
+  thickness: number,
+  pitch: number,
+  color: THREE.Color,
+  out: Voxel[]
+) {
+  const nx = Math.max(2, Math.round(length / pitch));
+  const ny = Math.max(2, Math.round(thickness / pitch));
+  const cos = Math.cos(rotationZ);
+  const sin = Math.sin(rotationZ);
+
+  for (let ix = 0; ix < nx; ix++) {
+    for (let iy = 0; iy < ny; iy++) {
+      for (let iz = 0; iz < ny; iz++) {
+        if (Math.random() > 0.88) continue;
+        const lx = (ix / (nx - 1) - 0.5) * length;
+        const ly = (iy / (ny - 1) - 0.5) * thickness;
+        const lz = (iz / (ny - 1) - 0.5) * thickness;
+        const wx = center.x + lx * cos - ly * sin;
+        const wy = center.y + lx * sin + ly * cos;
+        out.push({
+          position: new THREE.Vector3(wx, wy, lz),
+          scale: pitch * (0.75 + Math.random() * 0.4),
+          color,
+        });
+      }
+    }
+  }
+}
+
+function buildSymbolVoxels(pitch: number) {
+  const voxels: Voxel[] = [];
   const angle = Math.PI / 5.5;
   const armLength = 1.15;
   const thickness = 0.16;
+  const gap = 1.05;
   const upper = chevronArm(angle, armLength, thickness);
   const lower = chevronArm(-angle, armLength, thickness);
-  const gap = 1.05;
+
+  const colorFor = (y: number) => {
+    const t = THREE.MathUtils.clamp((y + 0.9) / 1.8, 0, 1);
+    return new THREE.Color("#0d3a52").lerp(new THREE.Color("#8fe3ff"), t);
+  };
+
+  for (const [cx, mirror] of [[-gap, 1] as const, [gap, -1] as const]) {
+    for (const arm of [upper, lower]) {
+      const center = new THREE.Vector2(cx + arm.offset.x * mirror, arm.offset.y);
+      fillBar(center, arm.rotation * mirror, armLength, thickness, pitch, colorFor(arm.offset.y), voxels);
+    }
+  }
+  fillBar(new THREE.Vector2(0, 0), Math.PI / 2.5, armLength * 1.15, thickness * 0.9, pitch, colorFor(0.3), voxels);
+
+  return voxels;
+}
+
+function buildGroundVoxels(pitch: number) {
+  const voxels: Voxel[] = [];
+  const size = 7;
+  const n = Math.round(size / pitch);
+  const base = new THREE.Color("#071824");
+  const rim = new THREE.Color("#123a4d");
+
+  for (let ix = 0; ix < n; ix++) {
+    for (let iz = 0; iz < n; iz++) {
+      // Skip most cells — keeps total instances (and therefore GPU cost) in
+      // check while still reading as a dense, dune-like field.
+      if (Math.random() > 0.2) continue;
+      const x = (ix / (n - 1) - 0.5) * size;
+      const z = (iz / (n - 1) - 0.5) * size * 0.6 + 1.6;
+      const dist = Math.sqrt(x * x + z * z);
+      if (dist > size * 0.5) continue;
+      const y = -1.35 + Math.sin(x * 1.3) * 0.05 + Math.cos(z * 1.1) * 0.05;
+      const fade = THREE.MathUtils.clamp(1 - dist / (size * 0.5), 0, 1);
+      voxels.push({
+        position: new THREE.Vector3(x, y, z),
+        scale: pitch * (0.7 + Math.random() * 0.5),
+        color: base.clone().lerp(rim, fade),
+      });
+    }
+  }
+  return voxels;
+}
+
+function VoxelMesh({ voxels }: { voxels: Voxel[] }) {
+  const ref = useRef<THREE.InstancedMesh>(null);
+
+  useEffect(() => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    const m = new THREE.Matrix4();
+    voxels.forEach((v, i) => {
+      m.makeScale(v.scale, v.scale, v.scale);
+      m.setPosition(v.position);
+      mesh.setMatrixAt(i, m);
+      mesh.setColorAt(i, v.color);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }, [voxels]);
+
+  return (
+    <instancedMesh ref={ref} args={[undefined, undefined, voxels.length]}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial roughness={0.5} metalness={0.1} toneMapped={false} />
+    </instancedMesh>
+  );
+}
+
+function Symbol({ onToggleTheme, showHint }: { onToggleTheme: () => void; showHint: boolean }) {
+  const voxels = useMemo(() => buildSymbolVoxels(0.06), []);
+  const group = useRef<THREE.Group>(null);
 
   useFrame(({ clock }) => {
     if (group.current) {
-      group.current.position.y = Math.sin(clock.elapsedTime * 0.5) * 0.12;
+      group.current.position.y = Math.sin(clock.elapsedTime * 0.4) * 0.08;
     }
   });
 
-  const bind = clickable(onToggleTheme);
+  const handleClick = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    onToggleTheme();
+  };
 
   return (
-    <group ref={group}>
-      <group position={[-gap, 0, 0]}>
-        <RoundedBox args={upper.args} radius={0.06} smoothness={6} position={upper.position} rotation={upper.rotation} {...bind}>
-          <GlassMaterial color={accent} />
-        </RoundedBox>
-        <RoundedBox args={lower.args} radius={0.06} smoothness={6} position={lower.position} rotation={lower.rotation} {...bind}>
-          <GlassMaterial color={accent} />
-        </RoundedBox>
-      </group>
-
-      <RoundedBox
-        args={[armLength * 1.15, thickness * 0.9, thickness * 0.9]}
-        radius={0.045}
-        smoothness={6}
-        rotation={[0, 0, Math.PI / 2.5]}
-        {...bind}
-      >
-        <GlassMaterial color={accent2} />
-      </RoundedBox>
-
-      <group position={[gap, 0, 0]} scale={[-1, 1, 1]}>
-        <RoundedBox args={upper.args} radius={0.06} smoothness={6} position={upper.position} rotation={upper.rotation} {...bind}>
-          <GlassMaterial color={accent} />
-        </RoundedBox>
-        <RoundedBox args={lower.args} radius={0.06} smoothness={6} position={lower.position} rotation={lower.rotation} {...bind}>
-          <GlassMaterial color={accent} />
-        </RoundedBox>
-      </group>
-
+    <group
+      ref={group}
+      onClick={handleClick}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHoverCursor(true);
+      }}
+      onPointerOut={() => setHoverCursor(false)}
+    >
+      <VoxelMesh voxels={voxels} />
       {showHint && (
         <Html position={[0, 1.05, 0.2]} center transform={false} zIndexRange={[10, 0]}>
-          <div className="laptop-hint pointer-events-none flex items-center gap-1.5 whitespace-nowrap rounded-full border border-accent/40 bg-bg px-3 py-1.5 font-mono text-[11px] uppercase tracking-wide text-accent shadow-lg">
+          <div className="laptop-hint pointer-events-none flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/30 bg-[#0d1a24] px-3 py-1.5 font-mono text-[11px] uppercase tracking-wide text-[#8fe3ff] shadow-lg">
             👆 It&apos;s interactive
           </div>
         </Html>
@@ -130,78 +175,56 @@ function CodeSymbol({
   );
 }
 
-// A blinking text-cursor satellite — click to cycle the accent color.
-function CursorBlink({ accent, onCycleAccent }: { accent: string; onCycleAccent: () => void }) {
+function Spark({ accent, onCycleAccent }: { accent: string; onCycleAccent: () => void }) {
   const ref = useRef<THREE.Group>(null);
   const matRef = useRef<THREE.MeshBasicMaterial>(null);
 
   useFrame(({ clock }) => {
     if (ref.current) {
-      ref.current.rotation.y += 0.01;
+      const t = clock.elapsedTime * 0.6;
+      ref.current.position.set(Math.cos(t) * 1.9, 0.5 + Math.sin(t * 1.4) * 0.3, Math.sin(t) * 1.9);
     }
     if (matRef.current) {
-      matRef.current.opacity = Math.sin(clock.elapsedTime * 3.2) > 0 ? 1 : 0.15;
+      matRef.current.opacity = 0.6 + Math.sin(clock.elapsedTime * 3) * 0.4;
     }
   });
 
   return (
     <group ref={ref}>
-      {/* invisible, larger hit area — the visible bar is too thin to click reliably */}
-      <mesh {...clickable(onCycleAccent)}>
-        <sphereGeometry args={[0.35, 8, 8]} />
+      <mesh
+        onClick={(e) => {
+          e.stopPropagation();
+          onCycleAccent();
+        }}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          setHoverCursor(true);
+        }}
+        onPointerOut={() => setHoverCursor(false)}
+      >
+        <sphereGeometry args={[0.3, 8, 8]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
-      <RoundedBox args={[0.1, 0.42, 0.1]} radius={0.04} smoothness={4}>
-        <meshBasicMaterial ref={matRef} color={accent} transparent opacity={1} toneMapped={false} />
-      </RoundedBox>
+      <mesh>
+        <sphereGeometry args={[0.05, 12, 12]} />
+        <meshBasicMaterial ref={matRef} color={accent} transparent toneMapped={false} />
+      </mesh>
     </group>
   );
 }
 
-function Orbiter({
-  radius,
-  speed,
-  phase,
-  tilt,
-  scale = 1,
-  children,
-}: {
-  radius: number;
-  speed: number;
-  phase: number;
-  tilt: [number, number, number];
-  scale?: number;
-  children: React.ReactNode;
-}) {
-  const ref = useRef<THREE.Group>(null);
-
-  useFrame(({ clock }) => {
-    const t = clock.elapsedTime * speed + phase;
-    if (ref.current) {
-      ref.current.position.x = Math.cos(t) * radius;
-      ref.current.position.z = Math.sin(t) * radius;
-      ref.current.position.y = Math.sin(t * 1.6) * 0.3;
-    }
-  });
-
-  return (
-    <group rotation={tilt}>
-      <group ref={ref} scale={scale}>
-        {children}
-      </group>
-    </group>
-  );
+function Ground() {
+  const voxels = useMemo(() => buildGroundVoxels(0.16), []);
+  return <VoxelMesh voxels={voxels} />;
 }
 
-function Composition({
+function Scene({
   accent,
-  accent2,
   showHint,
   onToggleTheme,
   onCycleAccent,
 }: {
   accent: string;
-  accent2: string;
   showHint: boolean;
   onToggleTheme: () => void;
   onCycleAccent: () => void;
@@ -210,30 +233,47 @@ function Composition({
 
   useFrame(({ pointer }) => {
     if (parallax.current) {
-      parallax.current.rotation.y = THREE.MathUtils.lerp(parallax.current.rotation.y, pointer.x * 0.3, 0.04);
-      parallax.current.rotation.x = THREE.MathUtils.lerp(parallax.current.rotation.x, -pointer.y * 0.15, 0.04);
+      parallax.current.rotation.y = THREE.MathUtils.lerp(parallax.current.rotation.y, pointer.x * 0.25, 0.04);
     }
   });
 
   return (
-    <group ref={parallax}>
-      <CodeSymbol accent={accent} accent2={accent2} showHint={showHint} onToggleTheme={onToggleTheme} />
-      <Orbiter radius={2.1} speed={0.35} phase={0} tilt={[0.3, 0, 0.1]}>
-        <CursorBlink accent={accent2} onCycleAccent={onCycleAccent} />
-      </Orbiter>
-    </group>
+    <>
+      <color attach="background" args={["#081420"]} />
+      <fog attach="fog" args={["#081420", 4, 11]} />
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[3, 4, 2]} intensity={1.1} color="#bfe9ff" />
+      <Sparkles count={40} scale={7} size={1.4} speed={0.15} opacity={0.5} color="#bfe9ff" />
+      <group ref={parallax}>
+        <Symbol onToggleTheme={onToggleTheme} showHint={showHint} />
+        <Spark accent={accent} onCycleAccent={onCycleAccent} />
+      </group>
+      <Ground />
+    </>
+  );
+}
+
+function Controls({ enableDragRotate }: { enableDragRotate: boolean }) {
+  return (
+    <OrbitControls
+      enableZoom={false}
+      enablePan={false}
+      enableRotate={enableDragRotate}
+      autoRotate
+      autoRotateSpeed={0.5}
+      rotateSpeed={0.4}
+      minPolarAngle={Math.PI / 2 - 0.35}
+      maxPolarAngle={Math.PI / 2 + 0.2}
+    />
   );
 }
 
 export function HeroScene({
-  theme,
   accent,
-  accent2,
   showHint,
   onToggleTheme,
   onCycleAccent,
 }: {
-  theme: ThemeMode;
   accent: string;
   accent2: string;
   showHint: boolean;
@@ -246,7 +286,7 @@ export function HeroScene({
     // Touch-dragging the canvas to rotate the model fights with swiping to
     // scroll the page — the browser can't tell which gesture is intended,
     // and the result looks broken. Disabling drag-rotate on coarse pointers
-    // (touch) leaves scrolling exclusively to the page; autoRotate still runs.
+    // (touch) leaves scrolling exclusively to the page.
     // matchMedia doesn't exist during the static-export build, so this can
     // only be read here, not derived at initial state.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -255,41 +295,14 @@ export function HeroScene({
 
   return (
     <Canvas
-      camera={{ position: [0, 0.2, 7.5], fov: 36 }}
-      gl={{ antialias: true, alpha: true }}
-      dpr={[1, 1.75]}
+      camera={{ position: [0, 0.1, 6.4], fov: 38 }}
+      gl={{ antialias: true }}
+      dpr={[1, 1.5]}
     >
-      <ambientLight intensity={0.55} />
-      <directionalLight position={[4, 3, 5]} intensity={1.3} color="#ffffff" />
-      <directionalLight position={[-4, -2, -3]} intensity={0.35} color={accent2} />
       <Suspense fallback={null}>
-        <Environment preset="city" environmentIntensity={0.7} />
+        <Scene accent={accent} showHint={showHint} onToggleTheme={onToggleTheme} onCycleAccent={onCycleAccent} />
       </Suspense>
-      <Composition
-        accent={accent}
-        accent2={accent2}
-        showHint={showHint}
-        onToggleTheme={onToggleTheme}
-        onCycleAccent={onCycleAccent}
-      />
-      <ContactShadows
-        position={[0, -1.05, 0]}
-        opacity={theme === "dark" ? 0.5 : 0.3}
-        scale={9}
-        blur={2.6}
-        far={2.2}
-        color={theme === "dark" ? "#000000" : "#10141b"}
-      />
-      <OrbitControls
-        enableZoom={false}
-        enablePan={false}
-        enableRotate={enableDragRotate}
-        autoRotate
-        autoRotateSpeed={0.5}
-        rotateSpeed={0.4}
-        minPolarAngle={Math.PI / 2 - 0.5}
-        maxPolarAngle={Math.PI / 2 + 0.5}
-      />
+      <Controls enableDragRotate={enableDragRotate} />
     </Canvas>
   );
 }

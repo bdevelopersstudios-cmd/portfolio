@@ -14,7 +14,7 @@ const HeroScene = dynamic(() => import("@/components/hero-scene").then((m) => m.
 const headlineWords = ["Full-stack", "products,", "built", "end", "to", "end."];
 
 export function Hero() {
-  const { theme, accent, hasDiscoveredLaptop, toggleTheme, cycleAccent } = useTheme();
+  const { accent, hasDiscoveredLaptop, toggleTheme, cycleAccent } = useTheme();
 
   return (
     <section
@@ -80,10 +80,9 @@ export function Hero() {
         <div className="relative z-0 flex flex-col items-center">
           <div
             id="hero-3d"
-            className="mx-auto h-[220px] w-full sm:h-[300px] md:h-[min(48vh,400px)]"
+            className="mx-auto h-[260px] w-full overflow-hidden rounded-2xl bg-[#081420] sm:h-[340px] md:h-[min(50vh,420px)]"
           >
             <HeroScene
-              theme={theme}
               accent={accent.accent}
               accent2={accent.accent2}
               showHint={!hasDiscoveredLaptop}
@@ -98,12 +97,12 @@ export function Hero() {
               opacity: { duration: 0.6, delay: 1.4 },
               scale: { duration: 1.6, repeat: hasDiscoveredLaptop ? 0 : Infinity, ease: "easeInOut" },
             }}
-            className={`pointer-events-none mt-2 text-center font-mono text-[11px] uppercase tracking-[0.15em] ${
+            className={`pointer-events-none mt-3 text-center font-mono text-[11px] uppercase tracking-[0.15em] ${
               hasDiscoveredLaptop ? "text-ink-faint" : "font-semibold text-accent"
             }`}
           >
             {hasDiscoveredLaptop
-              ? "Click the symbol for theme, the cursor for accent"
+              ? "Click the symbol for theme, the spark for accent"
               : "👆 It's interactive — try clicking it"}
           </motion.p>
         </div>

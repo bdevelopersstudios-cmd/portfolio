@@ -103,8 +103,8 @@ export function Hero() {
             }`}
           >
             {hasDiscoveredLaptop
-              ? "Click the laptop — screen swaps theme, keys swap accent"
-              : "👆 It's interactive — click the laptop"}
+              ? "Click the symbol for theme, the cursor for accent"
+              : "👆 It's interactive — try clicking it"}
           </motion.p>
         </div>
       </div>

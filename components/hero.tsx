@@ -15,15 +15,15 @@ export function Hero() {
   return (
     <section
       id="top"
-      className="relative min-h-[100svh] w-full overflow-hidden border-b border-line-soft"
+      className="relative flex min-h-[100svh] w-full items-center overflow-hidden border-b border-line-soft"
     >
-      <div className="mx-auto grid max-w-[1400px] grid-cols-1 items-center gap-6 px-6 pt-32 pb-16 sm:px-10 md:grid-cols-[1.1fr_0.9fr] md:pt-40 lg:px-16">
+      <div className="mx-auto grid max-w-[1400px] grid-cols-1 items-center gap-4 px-6 py-28 sm:px-10 md:grid-cols-[1.1fr_0.9fr] md:gap-6 md:py-24 lg:px-16">
         <div className="relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="mb-6 flex items-center gap-3 font-mono text-xs uppercase tracking-[0.2em] text-ink-dim"
+            className="mb-5 flex items-center gap-3 font-mono text-xs uppercase tracking-[0.2em] text-ink-dim"
           >
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
@@ -51,7 +51,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.65 }}
-            className="mt-6 max-w-md text-lg text-ink-dim text-balance"
+            className="mt-5 max-w-md text-lg text-ink-dim text-balance"
           >
             I&apos;m {profile.name} — a developer who takes a product from a Figma
             file through database migrations, without losing the seams in between.
@@ -61,7 +61,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.8 }}
-            className="mt-10 flex flex-wrap items-center gap-4"
+            className="mt-8 flex flex-wrap items-center gap-4"
           >
             <MagneticButton href="#work" variant="solid">
               View selected work
@@ -72,7 +72,7 @@ export function Hero() {
           </motion.div>
         </div>
 
-        <div className="relative z-0 mx-auto h-[320px] w-full sm:h-[420px] md:h-[560px]">
+        <div className="relative z-0 mx-auto h-[240px] w-full sm:h-[320px] md:h-[min(52vh,420px)]">
           <HeroScene />
         </div>
       </div>
@@ -81,10 +81,10 @@ export function Hero() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 1.2 }}
-        className="pointer-events-none absolute bottom-8 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-ink-faint sm:flex"
+        className="pointer-events-none absolute bottom-4 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-ink-faint sm:flex"
       >
         <span>Scroll</span>
-        <span className="h-8 w-px bg-gradient-to-b from-ink-faint to-transparent" />
+        <span className="h-6 w-px bg-gradient-to-b from-ink-faint to-transparent" />
       </motion.div>
     </section>
   );

@@ -1,28 +1,34 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { Suspense, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Edges, OrbitControls, Sparkles } from "@react-three/drei";
+import {
+  ContactShadows,
+  Edges,
+  Environment,
+  OrbitControls,
+  RoundedBox,
+} from "@react-three/drei";
 import * as THREE from "three";
 
-const ACCENT = "#3fd9ec";
-const ACCENT_2 = "#7c8cf8";
-const CASE_COLOR = "#2b3648";
-const KEY_COLOR = "#38455a";
+const ACCENT = "#2f5eff";
+const ACCENT_2 = "#ff7a45";
+const CASE_COLOR = "#262b33";
+const KEY_COLOR = "#34393f";
 
 const CODE_LINES: Array<{ indent: number; width: number; color: string }> = [
-  { indent: 0, width: 120, color: ACCENT_2 },
+  { indent: 0, width: 120, color: "#7c93ff" },
   { indent: 24, width: 200, color: "#e2e8f0" },
-  { indent: 24, width: 150, color: ACCENT },
+  { indent: 24, width: 150, color: "#5ec8ff" },
   { indent: 48, width: 170, color: "#e2e8f0" },
   { indent: 48, width: 90, color: "#7c8a9c" },
   { indent: 24, width: 60, color: "#e2e8f0" },
-  { indent: 0, width: 140, color: ACCENT_2 },
+  { indent: 0, width: 140, color: "#7c93ff" },
   { indent: 24, width: 210, color: "#e2e8f0" },
-  { indent: 24, width: 130, color: ACCENT },
+  { indent: 24, width: 130, color: "#5ec8ff" },
   { indent: 24, width: 180, color: "#e2e8f0" },
   { indent: 0, width: 40, color: "#7c8a9c" },
-  { indent: 0, width: 100, color: ACCENT_2 },
+  { indent: 0, width: 100, color: "#7c93ff" },
   { indent: 24, width: 160, color: "#e2e8f0" },
   { indent: 0, width: 20, color: "#7c8a9c" },
 ];
@@ -47,6 +53,18 @@ function useCodeTexture() {
     texture.colorSpace = THREE.SRGBColorSpace;
     return texture;
   }, []);
+}
+
+function caseMaterial() {
+  return (
+    <meshPhysicalMaterial
+      color={CASE_COLOR}
+      roughness={0.32}
+      metalness={0.75}
+      clearcoat={0.6}
+      clearcoatRoughness={0.25}
+    />
+  );
 }
 
 function Laptop() {
@@ -80,31 +98,36 @@ function Laptop() {
   return (
     <group ref={group} rotation={[0.08, -0.32, 0]}>
       {/* base / keyboard deck */}
-      <mesh position={[0, -0.32, 0.15]}>
-        <boxGeometry args={[2.1, 0.09, 1.3]} />
-        <meshStandardMaterial color={CASE_COLOR} roughness={0.5} metalness={0.3} />
+      <RoundedBox args={[2.1, 0.09, 1.3]} radius={0.035} smoothness={4} position={[0, -0.32, 0.15]}>
+        {caseMaterial()}
         <Edges color={ACCENT_2} threshold={20} />
-      </mesh>
+      </RoundedBox>
 
       {keys.map((k, i) => (
-        <mesh key={i} position={[k.pos[0], -0.32 + 0.06, k.pos[2]]}>
-          <boxGeometry args={[0.1, 0.035, 0.1]} />
-          <meshStandardMaterial
+        <RoundedBox
+          key={i}
+          args={[0.1, 0.035, 0.1]}
+          radius={0.015}
+          smoothness={2}
+          position={[k.pos[0], -0.32 + 0.06, k.pos[2]]}
+        >
+          <meshPhysicalMaterial
             color={KEY_COLOR}
+            roughness={0.55}
+            metalness={0.15}
+            clearcoat={0.3}
             emissive={k.lit ? ACCENT : "#000000"}
             emissiveIntensity={k.lit ? 0.9 : 0}
-            roughness={0.6}
           />
-        </mesh>
+        </RoundedBox>
       ))}
 
       {/* hinge + screen, tilted back */}
       <group position={[0, -0.275, -0.5]} rotation={[-0.12, 0, 0]}>
-        <mesh position={[0, 0.65, 0]}>
-          <boxGeometry args={[2.1, 1.3, 0.05]} />
-          <meshStandardMaterial color={CASE_COLOR} roughness={0.5} metalness={0.3} />
+        <RoundedBox args={[2.1, 1.3, 0.05]} radius={0.03} smoothness={4} position={[0, 0.65, 0]}>
+          {caseMaterial()}
           <Edges color={ACCENT} threshold={20} />
-        </mesh>
+        </RoundedBox>
         <mesh position={[0, 0.65, 0.028]}>
           <planeGeometry args={[1.9, 1.1]} />
           <meshBasicMaterial map={codeTexture} toneMapped={false} />
@@ -135,27 +158,26 @@ function TerminalWindow() {
 
   return (
     <group>
-      <mesh>
-        <boxGeometry args={[1.15, 0.85, 0.03]} />
-        <meshStandardMaterial color="#141b28" roughness={0.6} />
+      <RoundedBox args={[1.15, 0.85, 0.04]} radius={0.04} smoothness={4}>
+        <meshPhysicalMaterial color="#171d28" roughness={0.4} metalness={0.4} clearcoat={0.7} />
         <Edges color={ACCENT} threshold={20} />
-      </mesh>
+      </RoundedBox>
 
       {[-0.35, -0.22, -0.09].map((x, i) => (
-        <mesh key={i} position={[x, 0.35, 0.02]}>
+        <mesh key={i} position={[x, 0.35, 0.03]}>
           <circleGeometry args={[0.03, 16]} />
           <meshBasicMaterial color={[ACCENT_2, "#e2e8f0", ACCENT][i]} />
         </mesh>
       ))}
 
       {bars.map((b, i) => (
-        <mesh key={i} position={[-0.5 + b.width / 2, 0.12 - i * 0.14, 0.02]}>
+        <mesh key={i} position={[-0.5 + b.width / 2, 0.12 - i * 0.14, 0.03]}>
           <planeGeometry args={[b.width, 0.05]} />
           <meshBasicMaterial color={b.color} />
         </mesh>
       ))}
 
-      <mesh ref={cursorRef} position={[-0.5 + bars[3].width + 0.05, 0.12 - 3 * 0.14, 0.02]}>
+      <mesh ref={cursorRef} position={[-0.5 + bars[3].width + 0.05, 0.12 - 3 * 0.14, 0.03]}>
         <planeGeometry args={[0.05, 0.06]} />
         <meshBasicMaterial color={ACCENT} transparent opacity={1} />
       </mesh>
@@ -165,48 +187,52 @@ function TerminalWindow() {
 
 function bracketArm(angle: number, length: number, thickness: number) {
   return {
-    position: [
-      (Math.cos(angle) * length) / 2,
-      (Math.sin(angle) * length) / 2,
-      0,
-    ] as [number, number, number],
+    position: [(Math.cos(angle) * length) / 2, (Math.sin(angle) * length) / 2, 0] as [
+      number,
+      number,
+      number,
+    ],
     rotation: [0, 0, angle] as [number, number, number],
     args: [length, thickness, thickness] as [number, number, number],
   };
 }
 
+function bracketMaterial(color: string) {
+  return <meshPhysicalMaterial color={color} roughness={0.15} metalness={0.2} clearcoat={1} clearcoatRoughness={0.1} />;
+}
+
 function CodeBrackets() {
   const angle = Math.PI / 6;
   const armLength = 0.5;
-  const thickness = 0.07;
+  const thickness = 0.08;
   const upper = bracketArm(angle, armLength, thickness);
   const lower = bracketArm(-angle, armLength, thickness);
 
   return (
     <group>
       <group position={[-0.55, 0, 0]}>
-        <mesh position={upper.position} rotation={upper.rotation}>
-          <boxGeometry args={upper.args} />
-          <meshBasicMaterial color={ACCENT} />
-        </mesh>
-        <mesh position={lower.position} rotation={lower.rotation}>
-          <boxGeometry args={lower.args} />
-          <meshBasicMaterial color={ACCENT} />
-        </mesh>
+        <RoundedBox args={upper.args} radius={0.03} smoothness={2} position={upper.position} rotation={upper.rotation}>
+          {bracketMaterial(ACCENT)}
+        </RoundedBox>
+        <RoundedBox args={lower.args} radius={0.03} smoothness={2} position={lower.position} rotation={lower.rotation}>
+          {bracketMaterial(ACCENT)}
+        </RoundedBox>
       </group>
-      <mesh rotation={[0, 0, Math.PI / 2.6]}>
-        <boxGeometry args={[0.62, thickness * 0.85, thickness * 0.85]} />
-        <meshBasicMaterial color={ACCENT_2} />
-      </mesh>
+      <RoundedBox
+        args={[0.62, thickness * 0.85, thickness * 0.85]}
+        radius={0.025}
+        smoothness={2}
+        rotation={[0, 0, Math.PI / 2.6]}
+      >
+        {bracketMaterial(ACCENT_2)}
+      </RoundedBox>
       <group position={[0.55, 0, 0]} scale={[-1, 1, 1]}>
-        <mesh position={upper.position} rotation={upper.rotation}>
-          <boxGeometry args={upper.args} />
-          <meshBasicMaterial color={ACCENT} />
-        </mesh>
-        <mesh position={lower.position} rotation={lower.rotation}>
-          <boxGeometry args={lower.args} />
-          <meshBasicMaterial color={ACCENT} />
-        </mesh>
+        <RoundedBox args={upper.args} radius={0.03} smoothness={2} position={upper.position} rotation={upper.rotation}>
+          {bracketMaterial(ACCENT)}
+        </RoundedBox>
+        <RoundedBox args={lower.args} radius={0.03} smoothness={2} position={lower.position} rotation={lower.rotation}>
+          {bracketMaterial(ACCENT)}
+        </RoundedBox>
       </group>
     </group>
   );
@@ -249,8 +275,25 @@ function Orbiter({
 }
 
 function Composition() {
+  const parallax = useRef<THREE.Group>(null);
+
+  useFrame(({ pointer }) => {
+    if (parallax.current) {
+      parallax.current.rotation.y = THREE.MathUtils.lerp(
+        parallax.current.rotation.y,
+        pointer.x * 0.25,
+        0.04
+      );
+      parallax.current.rotation.x = THREE.MathUtils.lerp(
+        parallax.current.rotation.x,
+        -pointer.y * 0.12,
+        0.04
+      );
+    }
+  });
+
   return (
-    <group>
+    <group ref={parallax}>
       <group scale={1.35}>
         <Laptop />
       </group>
@@ -271,11 +314,14 @@ export function HeroScene() {
       gl={{ antialias: true, alpha: true }}
       dpr={[1, 1.75]}
     >
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[4, 3, 5]} intensity={1.1} color="#d7f3ff" />
-      <directionalLight position={[-4, -2, -3]} intensity={0.35} color={ACCENT_2} />
-      <Sparkles count={35} scale={7.5} size={1.2} speed={0.15} opacity={0.2} color={ACCENT} />
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[4, 3, 5]} intensity={1.2} color="#ffffff" />
+      <directionalLight position={[-4, -2, -3]} intensity={0.3} color={ACCENT} />
+      <Suspense fallback={null}>
+        <Environment preset="city" environmentIntensity={0.6} />
+      </Suspense>
       <Composition />
+      <ContactShadows position={[0, -1.05, 0]} opacity={0.3} scale={9} blur={2.6} far={2.2} color="#10141b" />
       <OrbitControls
         enableZoom={false}
         enablePan={false}

@@ -31,7 +31,7 @@ export function MagneticButton({
     "relative inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 font-mono text-xs uppercase tracking-[0.15em] transition-colors duration-300";
   const styles =
     variant === "solid"
-      ? "bg-accent text-accent-ink hover:bg-[#72e6f2]"
+      ? "bg-accent text-accent-ink hover:bg-[#2347d6]"
       : "border border-line text-ink hover:border-accent hover:text-accent";
 
   return (

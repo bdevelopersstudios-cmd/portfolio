@@ -38,7 +38,7 @@ export function Work() {
             >
               <TiltCard>
                 <div className="relative overflow-hidden border border-line bg-bg-raised/60 p-8 sm:p-12">
-                  <span className="pointer-events-none absolute -right-4 -top-10 select-none font-display text-[9rem] leading-none text-white/[0.03] sm:text-[12rem]">
+                  <span className="pointer-events-none absolute -right-4 -top-10 select-none font-display text-[9rem] leading-none text-black/[0.035] sm:text-[12rem]">
                     {item.index}
                   </span>
 

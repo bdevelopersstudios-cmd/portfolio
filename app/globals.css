@@ -1,18 +1,19 @@
 @import "tailwindcss";
+@import "lenis/dist/lenis.css";
 
 :root {
-  --bg: #1b2432;
-  --bg-raised: #232d3d;
-  --bg-raised-2: #2b3648;
-  --line: #3d4a5e;
-  --line-soft: #2f3a4c;
-  --ink: #eef2f6;
-  --ink-dim: #b3bfcd;
-  --ink-faint: #7c8a9c;
-  --accent: #3fd9ec;
-  --accent-ink: #04262c;
-  --accent-dim: #1f6b78;
-  --accent-2: #7c8cf8;
+  --bg: #ffffff;
+  --bg-raised: #f5f7fb;
+  --bg-raised-2: #ebeff5;
+  --line: #e2e6ee;
+  --line-soft: #edf0f5;
+  --ink: #10141b;
+  --ink-dim: #545f6e;
+  --ink-faint: #8b93a1;
+  --accent: #2f5eff;
+  --accent-ink: #ffffff;
+  --accent-dim: #1c3fcc;
+  --accent-2: #ff7a45;
 
   --font-display: "Space Grotesk", sans-serif;
   --font-body: "Manrope", sans-serif;
@@ -45,19 +46,7 @@
 }
 
 html {
-  scroll-behavior: smooth;
   background: var(--bg);
-  scroll-snap-type: y mandatory;
-  scroll-padding-top: 5rem;
-}
-
-/* Every top-level page section is a direct <section>/<footer> child of
-   <main>/<body> — snapping them here avoids threading a class through
-   each section component. */
-main > section,
-body > footer {
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
 }
 
 body {
@@ -95,28 +84,24 @@ html {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
   }
 }
 
-/* Grain overlay — a fixed noise texture so the flat dark background reads
+/* Grain overlay — a fixed noise texture so the flat background reads
    as material rather than a plain color fill. */
 .grain {
   position: fixed;
   inset: 0;
   z-index: 60;
   pointer-events: none;
-  opacity: 0.05;
-  mix-blend-mode: overlay;
+  opacity: 0.025;
+  mix-blend-mode: multiply;
 }
 
 @keyframes marquee {

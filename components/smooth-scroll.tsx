@@ -8,7 +8,7 @@ export function SmoothScroll() {
     const lenis = new Lenis({
       autoRaf: true,
       anchors: true,
-      duration: 1.1,
+      duration: 0.7,
       easing: (t: number) => 1 - Math.pow(1 - t, 3),
     });
 

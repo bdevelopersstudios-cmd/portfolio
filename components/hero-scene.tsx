@@ -52,49 +52,6 @@ function useCodeTexture() {
   }, []);
 }
 
-// A single textured plane reads as a far cleaner keyboard than 40+ individual
-// keycap meshes — cheaper to render (fixes a real performance/rendering glitch
-// on weaker GPUs) and closer to how a product shot actually looks.
-function useKeyboardTexture(accent: string) {
-  return useMemo(() => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 640;
-    canvas.height = 220;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.fillStyle = "#1c2028";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      const rows = 4;
-      const cols = 13;
-      const pad = 6;
-      const gap = 4;
-      const cellW = (canvas.width - pad * 2) / cols;
-      const cellH = (canvas.height - pad * 2 - 34) / rows;
-
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const x = pad + c * cellW;
-          const y = pad + r * cellH;
-          const lit = (r + c) % 11 === 0;
-          ctx.fillStyle = lit ? accent : "#2c313b";
-          ctx.beginPath();
-          ctx.roundRect(x + gap / 2, y + gap / 2, cellW - gap, cellH - gap, 3);
-          ctx.fill();
-        }
-      }
-      // spacebar
-      ctx.fillStyle = "#2c313b";
-      ctx.beginPath();
-      ctx.roundRect(pad + cellW * 3, pad + rows * cellH + 4, cellW * 6, 24, 4);
-      ctx.fill();
-    }
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    return texture;
-  }, [accent]);
-}
-
 function setHoverCursor(hovering: boolean) {
   const el = document.getElementById("hero-3d");
   if (!el) return;
@@ -103,38 +60,8 @@ function setHoverCursor(hovering: boolean) {
   document.body.style.cursor = hovering ? "pointer" : "";
 }
 
-function CaseMaterial({ color }: { color: string }) {
-  return (
-    <meshPhysicalMaterial color={color} roughness={0.25} metalness={0.85} clearcoat={0.8} clearcoatRoughness={0.15} />
-  );
-}
-
-function Laptop({
-  caseColor,
-  accent,
-  accent2,
-  showHint,
-  onToggleTheme,
-  onCycleAccent,
-}: {
-  caseColor: string;
-  accent: string;
-  accent2: string;
-  showHint: boolean;
-  onToggleTheme: () => void;
-  onCycleAccent: () => void;
-}) {
-  const group = useRef<THREE.Group>(null);
-  const codeTexture = useCodeTexture();
-  const keyboardTexture = useKeyboardTexture(accent);
-
-  useFrame(({ clock }) => {
-    if (group.current) {
-      group.current.position.y = Math.sin(clock.elapsedTime * 0.5) * 0.08;
-    }
-  });
-
-  const clickable = (handler: () => void) => ({
+function clickable(handler: () => void) {
+  return {
     onClick: (e: { stopPropagation: () => void }) => {
       e.stopPropagation();
       handler();
@@ -144,83 +71,60 @@ function Laptop({
       setHoverCursor(true);
     },
     onPointerOut: () => setHoverCursor(false),
+  };
+}
+
+function CaseMaterial({ color }: { color: string }) {
+  return (
+    <meshPhysicalMaterial color={color} roughness={0.22} metalness={0.85} clearcoat={0.85} clearcoatRoughness={0.12} />
+  );
+}
+
+// A single floating panel showing a code editor — click to toggle the site's
+// theme. No hinge, keyboard, or trackpad: one clean shape renders reliably
+// and reads clearly at a glance, rather than an assembled "product" that's
+// hard to get looking right with primitive geometry.
+function FloatingScreen({ caseColor, accent, showHint, onToggleTheme }: { caseColor: string; accent: string; showHint: boolean; onToggleTheme: () => void }) {
+  const group = useRef<THREE.Group>(null);
+  const codeTexture = useCodeTexture();
+
+  useFrame(({ clock }) => {
+    if (group.current) {
+      group.current.position.y = Math.sin(clock.elapsedTime * 0.5) * 0.1;
+      group.current.rotation.z = Math.sin(clock.elapsedTime * 0.35) * 0.02;
+    }
   });
 
   return (
-    <group ref={group} rotation={[0.08, -0.32, 0]}>
-      {/* base / keyboard deck — click cycles the accent color */}
-      <RoundedBox
-        args={[2.1, 0.08, 1.3]}
-        radius={0.05}
-        smoothness={6}
-        position={[0, -0.32, 0.15]}
-        {...clickable(onCycleAccent)}
-      >
+    <group ref={group}>
+      <RoundedBox args={[2.3, 1.5, 0.06]} radius={0.07} smoothness={8} {...clickable(onToggleTheme)}>
         <CaseMaterial color={caseColor} />
-        <Edges color={accent2} threshold={20} />
+        <Edges color={accent} threshold={20} />
       </RoundedBox>
 
-      {/* keyboard */}
-      <mesh position={[0, -0.32 + 0.041, 0.06]} rotation={[-Math.PI / 2, 0, 0]} {...clickable(onCycleAccent)}>
-        <planeGeometry args={[1.85, 0.72]} />
-        <meshBasicMaterial map={keyboardTexture} toneMapped={false} />
+      <mesh position={[0, 0, 0.032]} {...clickable(onToggleTheme)}>
+        <planeGeometry args={[2.14, 1.34]} />
+        <meshBasicMaterial map={codeTexture} toneMapped={false} />
       </mesh>
 
-      {/* trackpad */}
-      <RoundedBox
-        args={[0.62, 0.01, 0.24]}
-        radius={0.02}
-        smoothness={3}
-        position={[0, -0.32 + 0.05, 0.62]}
-        {...clickable(onCycleAccent)}
-      >
-        <meshPhysicalMaterial color={caseColor} roughness={0.1} metalness={0.6} clearcoat={0.95} />
-        <Edges color={accent2} threshold={20} />
-      </RoundedBox>
-
-      {/* hinge barrel */}
-      <mesh position={[0, -0.29, -0.5]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.028, 0.028, 2.02, 20]} />
+      {/* stand */}
+      <mesh position={[0, -0.95, -0.15]} rotation={[0.5, 0, 0]}>
+        <cylinderGeometry args={[0.045, 0.06, 0.5, 12]} />
         <CaseMaterial color={caseColor} />
       </mesh>
 
-      {/* screen, tilted back — click toggles light/dark */}
-      <group position={[0, -0.275, -0.5]} rotation={[-0.12, 0, 0]}>
-        <RoundedBox args={[2.1, 1.3, 0.04]} radius={0.05} smoothness={6} position={[0, 0.65, 0]} {...clickable(onToggleTheme)}>
-          <CaseMaterial color={caseColor} />
-          <Edges color={accent} threshold={20} />
-        </RoundedBox>
-
-        {/* webcam notch */}
-        <mesh position={[0, 1.22, 0.022]}>
-          <circleGeometry args={[0.012, 16]} />
-          <meshStandardMaterial color="#000000" roughness={0.3} />
-        </mesh>
-
-        {/* lid logo, visible from behind */}
-        <mesh position={[0, 0.65, -0.022]} rotation={[0, Math.PI, 0]}>
-          <ringGeometry args={[0.05, 0.065, 32]} />
-          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.6} />
-        </mesh>
-
-        <mesh position={[0, 0.65, 0.024]} {...clickable(onToggleTheme)}>
-          <planeGeometry args={[1.98, 1.16]} />
-          <meshBasicMaterial map={codeTexture} toneMapped={false} />
-        </mesh>
-
-        {showHint && (
-          <Html position={[0, 1.42, 0.1]} center transform={false} zIndexRange={[10, 0]}>
-            <div className="laptop-hint pointer-events-none flex items-center gap-1.5 whitespace-nowrap rounded-full border border-accent/40 bg-bg px-3 py-1.5 font-mono text-[11px] uppercase tracking-wide text-accent shadow-lg">
-              👆 It&apos;s interactive
-            </div>
-          </Html>
-        )}
-      </group>
+      {showHint && (
+        <Html position={[0, 0.95, 0.1]} center transform={false} zIndexRange={[10, 0]}>
+          <div className="laptop-hint pointer-events-none flex items-center gap-1.5 whitespace-nowrap rounded-full border border-accent/40 bg-bg px-3 py-1.5 font-mono text-[11px] uppercase tracking-wide text-accent shadow-lg">
+            👆 It&apos;s interactive
+          </div>
+        </Html>
+      )}
     </group>
   );
 }
 
-function TerminalWindow({ accent, accent2 }: { accent: string; accent2: string }) {
+function TerminalWindow({ accent, accent2, onCycleAccent }: { accent: string; accent2: string; onCycleAccent: () => void }) {
   const bars = useMemo(
     () => [
       { width: 0.55, color: accent2 },
@@ -241,7 +145,7 @@ function TerminalWindow({ accent, accent2 }: { accent: string; accent2: string }
 
   return (
     <group>
-      <RoundedBox args={[1.15, 0.85, 0.04]} radius={0.05} smoothness={6}>
+      <RoundedBox args={[1.15, 0.85, 0.04]} radius={0.05} smoothness={6} {...clickable(onCycleAccent)}>
         <meshPhysicalMaterial color="#171d28" roughness={0.35} metalness={0.5} clearcoat={0.8} />
         <Edges color={accent} threshold={20} />
       </RoundedBox>
@@ -384,20 +288,11 @@ function Composition({
 
   return (
     <group ref={parallax}>
-      <group scale={1.35}>
-        <Laptop
-          caseColor={caseColor}
-          accent={accent}
-          accent2={accent2}
-          showHint={showHint}
-          onToggleTheme={onToggleTheme}
-          onCycleAccent={onCycleAccent}
-        />
-      </group>
-      <Orbiter radius={2.7} speed={0.3} phase={0} tilt={[0.25, 0, 0.05]} scale={0.85}>
-        <TerminalWindow accent={accent} accent2={accent2} />
+      <FloatingScreen caseColor={caseColor} accent={accent} showHint={showHint} onToggleTheme={onToggleTheme} />
+      <Orbiter radius={2.6} speed={0.3} phase={0} tilt={[0.25, 0, 0.05]} scale={0.85}>
+        <TerminalWindow accent={accent} accent2={accent2} onCycleAccent={onCycleAccent} />
       </Orbiter>
-      <Orbiter radius={3.1} speed={-0.22} phase={2.6} tilt={[-0.2, 0, -0.15]} scale={1}>
+      <Orbiter radius={3.0} speed={-0.22} phase={2.6} tilt={[-0.2, 0, -0.15]} scale={1}>
         <CodeBrackets accent={accent} accent2={accent2} />
       </Orbiter>
     </group>
@@ -434,7 +329,7 @@ export function HeroScene({
 
   return (
     <Canvas
-      camera={{ position: [0, 0.3, 9], fov: 36 }}
+      camera={{ position: [0, 0.2, 8], fov: 36 }}
       gl={{ antialias: true, alpha: true }}
       dpr={[1, 1.75]}
     >

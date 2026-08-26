@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Manrope, IBM_Plex_Mono } from "next/font/google";
+import { SiteChrome } from "@/components/site-chrome";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -64,7 +65,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="dot-grid">{children}</body>
+      <body className="dot-grid">
+        <SiteChrome>{children}</SiteChrome>
+      </body>
     </html>
   );
 }

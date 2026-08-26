@@ -1,17 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
 import { profile } from "@/lib/data";
 
-const links = [
-  { href: "#work", label: "Work" },
-  { href: "#experience", label: "Experience" },
-  { href: "#skills", label: "Skills" },
-  { href: "#contact", label: "Contact" },
+const sectionLinks = [
+  { hash: "work", label: "Work" },
+  { hash: "experience", label: "Experience" },
+  { hash: "skills", label: "Skills" },
+  { hash: "contact", label: "Contact" },
 ];
 
 export function Nav() {
+  const pathname = usePathname();
+  const isHome = pathname === "/";
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -21,6 +25,8 @@ export function Nav() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  const sectionHref = (hash: string) => (isHome ? `#${hash}` : `/#${hash}`);
 
   return (
     <motion.header
@@ -32,21 +38,28 @@ export function Nav() {
       }`}
     >
       <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-5 sm:px-10 lg:px-16">
-        <a href="#top" data-cursor-hover className="font-display text-lg tracking-tight">
+        <Link href="/" data-cursor-hover className="font-display text-lg tracking-tight">
           U<span className="text-accent">.</span>Saud
-        </a>
+        </Link>
 
         <nav className="hidden items-center gap-8 font-mono text-xs uppercase tracking-[0.15em] text-ink-dim md:flex">
-          {links.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
+          {sectionLinks.map((link) => (
+            <Link
+              key={link.hash}
+              href={sectionHref(link.hash)}
               data-cursor-hover
               className="transition-colors hover:text-accent"
             >
               {link.label}
-            </a>
+            </Link>
           ))}
+          <Link
+            href="/templates"
+            data-cursor-hover
+            className={`transition-colors hover:text-accent ${!isHome ? "text-accent" : ""}`}
+          >
+            Templates
+          </Link>
         </nav>
 
         <a
@@ -79,16 +92,23 @@ export function Nav() {
           exit={{ height: 0, opacity: 0 }}
           className="flex flex-col gap-1 overflow-hidden border-t border-line-soft bg-bg px-6 pb-6 font-mono text-sm uppercase tracking-[0.15em] text-ink-dim md:hidden"
         >
-          {links.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
+          {sectionLinks.map((link) => (
+            <Link
+              key={link.hash}
+              href={sectionHref(link.hash)}
               onClick={() => setOpen(false)}
               className="border-b border-line-soft py-4"
             >
               {link.label}
-            </a>
+            </Link>
           ))}
+          <Link
+            href="/templates"
+            onClick={() => setOpen(false)}
+            className="border-b border-line-soft py-4"
+          >
+            Templates
+          </Link>
         </motion.nav>
       )}
     </motion.header>

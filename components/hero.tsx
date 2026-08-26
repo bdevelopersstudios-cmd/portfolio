@@ -13,12 +13,13 @@ const HeroScene = dynamic(() => import("@/components/hero-scene").then((m) => m.
 const headlineWords = ["Full-stack", "products,", "built", "end", "to", "end."];
 
 export function Hero() {
-  const { accent, hasDiscoveredLaptop, toggleTheme, cycleAccent } = useTheme();
+  const { theme, accent, hasDiscoveredLaptop, toggleTheme, cycleAccent } = useTheme();
 
   return (
     <section id="top" className="relative min-h-[100svh] w-full overflow-hidden bg-[#081420]">
       <div id="hero-3d" className="absolute inset-0 z-0">
         <HeroScene
+          theme={theme}
           accent={accent.accent}
           accent2={accent.accent2}
           showHint={!hasDiscoveredLaptop}

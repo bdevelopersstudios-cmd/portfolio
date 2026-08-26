@@ -1,11 +1,17 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, type ThreeEvent } from "@react-three/fiber";
 import { Html, OrbitControls, Sparkles } from "@react-three/drei";
 import * as THREE from "three";
+import type { ThemeMode } from "@/lib/theme";
 
 const CODE_PALETTE = ["#5ec8ff", "#ff6ec7", "#ffd166", "#7dffb3", "#b39bff"];
+
+const CHASSIS: Record<ThemeMode, { deck: string; key: string; trackpad: string }> = {
+  dark: { deck: "#333d4c", key: "#232b37", trackpad: "#2a3340" },
+  light: { deck: "#e7eaf0", key: "#f7f8fa", trackpad: "#dde1e8" },
+};
 
 function setHoverCursor(hovering: boolean) {
   const el = document.getElementById("hero-3d");
@@ -17,42 +23,103 @@ function setHoverCursor(hovering: boolean) {
 
 type Voxel = { position: THREE.Vector3; scale: number; color: THREE.Color };
 
-// A flat slab of voxels — the laptop's base/keyboard deck.
-function buildBaseVoxels(pitch: number, center: THREE.Vector3, width: number, depth: number, thickness: number) {
-  const voxels: Voxel[] = [];
-  const nx = Math.max(2, Math.round(width / pitch));
-  const nz = Math.max(2, Math.round(depth / pitch));
-  const ny = Math.max(1, Math.round(thickness / pitch));
-  const deck = new THREE.Color("#131a24");
+function VoxelMesh({ voxels }: { voxels: Voxel[] }) {
+  const ref = useRef<THREE.InstancedMesh>(null);
+
+  useEffect(() => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    const m = new THREE.Matrix4();
+    voxels.forEach((v, i) => {
+      m.makeScale(v.scale, v.scale, v.scale);
+      m.setPosition(v.position);
+      mesh.setMatrixAt(i, m);
+      mesh.setColorAt(i, v.color);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }, [voxels]);
+
+  return (
+    <instancedMesh ref={ref} args={[undefined, undefined, voxels.length]}>
+      <boxGeometry args={[1, 1, 1]} />
+      {/* Unlit on purpose: color already carries all the shading, and
+          skipping per-pixel lighting matters once this canvas is full-bleed. */}
+      <meshBasicMaterial toneMapped={false} />
+    </instancedMesh>
+  );
+}
+
+// --- laptop shape (stable across theme toggles — only color depends on theme) ---
+
+const BASE_WIDTH = 2.7;
+const BASE_DEPTH = 1.5;
+const BASE_THICKNESS = 0.14;
+const BASE_CENTER = new THREE.Vector3(0, -0.25, 0.4);
+const SCREEN_TILT = -0.22;
+const SCREEN_HEIGHT = 1.65;
+const HINGE = new THREE.Vector3(0, BASE_CENTER.y + BASE_THICKNESS / 2, BASE_CENTER.z - BASE_DEPTH / 2);
+
+type RoleVoxel = { position: THREE.Vector3; scale: number; role: string };
+
+function buildLaptopShape(pitch: number): RoleVoxel[] {
+  const voxels: RoleVoxel[] = [];
+
+  // Deck: only the outer shell (top face + side walls) is ever visible from
+  // outside a solid block, so interior/bottom cells are skipped entirely —
+  // keeps this a solid-looking slab without paying for hidden instances.
+  const nx = Math.max(2, Math.round(BASE_WIDTH / pitch));
+  const nz = Math.max(2, Math.round(BASE_DEPTH / pitch));
+  const ny = Math.max(1, Math.round(BASE_THICKNESS / pitch));
 
   for (let ix = 0; ix < nx; ix++) {
     for (let iz = 0; iz < nz; iz++) {
+      const boundary = ix === 0 || ix === nx - 1 || iz === 0 || iz === nz - 1;
       for (let iy = 0; iy < ny; iy++) {
-        if (Math.random() > 0.82) continue;
-        const lx = (ix / (nx - 1) - 0.5) * width;
-        const lz = (iz / (nz - 1) - 0.5) * depth;
-        const ly = ny > 1 ? (iy / (ny - 1) - 0.5) * thickness : 0;
+        const top = iy === ny - 1;
+        if (!top && !boundary) continue;
+        if (top && boundary && Math.random() > 0.85) continue;
+        const lx = (ix / (nx - 1) - 0.5) * BASE_WIDTH;
+        const lz = (iz / (nz - 1) - 0.5) * BASE_DEPTH;
+        const ly = ny > 1 ? (iy / (ny - 1) - 0.5) * BASE_THICKNESS : 0;
         voxels.push({
-          position: new THREE.Vector3(center.x + lx, center.y + ly, center.z + lz),
-          scale: pitch * (0.75 + Math.random() * 0.35),
-          color: deck,
+          position: new THREE.Vector3(BASE_CENTER.x + lx, BASE_CENTER.y + ly, BASE_CENTER.z + lz),
+          scale: pitch * (0.88 + Math.random() * 0.16),
+          role: "deck",
         });
       }
     }
   }
 
-  // scattered backlit "keys" on the top surface, in a handful of vivid colors
-  const keyCols = 11;
+  // Keyboard: a proper full grid (not sparse confetti) with a handful of
+  // backlit accent keys scattered through it.
+  const keyCols = 13;
   const keyRows = 4;
   for (let r = 0; r < keyRows; r++) {
     for (let c = 0; c < keyCols; c++) {
-      if (Math.random() > 0.35) continue;
-      const lx = (c / (keyCols - 1) - 0.5) * width * 0.85;
-      const lz = (r / (keyRows - 1) - 0.5) * depth * 0.6;
+      if (Math.random() > 0.94) continue;
+      const lx = (c / (keyCols - 1) - 0.5) * BASE_WIDTH * 0.82;
+      const lz = (r / (keyRows - 1) - 0.5) * BASE_DEPTH * 0.5 - BASE_DEPTH * 0.08;
+      const accentKey = Math.random() < 0.16;
       voxels.push({
-        position: new THREE.Vector3(center.x + lx, center.y + thickness * 0.55, center.z + lz),
-        scale: pitch * 0.9,
-        color: new THREE.Color(CODE_PALETTE[(r + c) % CODE_PALETTE.length]),
+        position: new THREE.Vector3(BASE_CENTER.x + lx, BASE_CENTER.y + BASE_THICKNESS * 0.55, BASE_CENTER.z + lz),
+        scale: pitch * 0.85,
+        role: accentKey ? `keyAccent:${(r + c) % CODE_PALETTE.length}` : "key",
+      });
+    }
+  }
+
+  // Trackpad
+  const padCols = 5;
+  const padRows = 3;
+  for (let r = 0; r < padRows; r++) {
+    for (let c = 0; c < padCols; c++) {
+      const lx = (c / (padCols - 1) - 0.5) * BASE_WIDTH * 0.22;
+      const lz = (r / (padRows - 1) - 0.5) * BASE_DEPTH * 0.16 + BASE_DEPTH * 0.32;
+      voxels.push({
+        position: new THREE.Vector3(BASE_CENTER.x + lx, BASE_CENTER.y + BASE_THICKNESS * 0.55, BASE_CENTER.z + lz),
+        scale: pitch * 0.85,
+        role: "trackpad",
       });
     }
   }
@@ -60,63 +127,15 @@ function buildBaseVoxels(pitch: number, center: THREE.Vector3, width: number, de
   return voxels;
 }
 
-// The tilted screen — built from randomized colorful "code line" bands so it
-// reads as a lit-up editor rather than a plain gradient panel.
-function buildScreenVoxels(
-  pitch: number,
-  pivot: THREE.Vector3,
-  tiltX: number,
-  width: number,
-  height: number
-) {
-  const voxels: Voxel[] = [];
-  const cos = Math.cos(tiltX);
-  const sin = Math.sin(tiltX);
-  const rows = 11;
-  const rowHeight = height / rows;
-
-  for (let r = 0; r < rows; r++) {
-    const color = new THREE.Color(CODE_PALETTE[r % CODE_PALETTE.length]);
-    const lineWidthFrac = 0.22 + Math.random() * 0.6;
-    const indentFrac = Math.random() * 0.18;
-    const v = (r + 0.5) / rows;
-    const nx = Math.max(2, Math.round((width * lineWidthFrac) / pitch));
-    const nyThick = Math.max(1, Math.round((rowHeight * 0.55) / pitch));
-    const nzThick = Math.max(1, Math.round(0.05 / pitch));
-
-    for (let ix = 0; ix < nx; ix++) {
-      for (let iy = 0; iy < nyThick; iy++) {
-        for (let iz = 0; iz < nzThick; iz++) {
-          if (Math.random() > 0.9) continue;
-          const u = -0.5 + indentFrac + (ix / Math.max(nx - 1, 1)) * lineWidthFrac;
-          const lx = u * width;
-          const ly0 = v * height + (iy / Math.max(nyThick - 1, 1) - 0.5) * rowHeight * 0.55;
-          const lz0 = (iz / Math.max(nzThick - 1, 1) - 0.5) * 0.05;
-          const ly = ly0 * cos - lz0 * sin;
-          const lz = ly0 * sin + lz0 * cos;
-          voxels.push({
-            position: new THREE.Vector3(pivot.x + lx, pivot.y + ly, pivot.z + lz),
-            scale: pitch * (0.8 + Math.random() * 0.3),
-            color,
-          });
-        }
-      }
-    }
+function roleColor(role: string, theme: ThemeMode): THREE.Color {
+  const c = CHASSIS[theme];
+  if (role === "trackpad") return new THREE.Color(c.trackpad);
+  if (role === "key") return new THREE.Color(c.key);
+  if (role.startsWith("keyAccent:")) {
+    const idx = Number(role.split(":")[1]);
+    return new THREE.Color(CODE_PALETTE[idx % CODE_PALETTE.length]);
   }
-  return voxels;
-}
-
-function buildLaptopVoxels(pitch: number) {
-  const baseWidth = 2.7;
-  const baseDepth = 1.5;
-  const baseThickness = 0.14;
-  const baseCenter = new THREE.Vector3(0, -0.25, 0.4);
-  const base = buildBaseVoxels(pitch, baseCenter, baseWidth, baseDepth, baseThickness);
-
-  const hinge = new THREE.Vector3(0, baseCenter.y + baseThickness / 2, baseCenter.z - baseDepth / 2);
-  const screen = buildScreenVoxels(pitch, hinge, -0.22, baseWidth, 1.65);
-
-  return [...base, ...screen];
+  return new THREE.Color(c.deck);
 }
 
 function buildGroundVoxels(pitch: number) {
@@ -150,35 +169,245 @@ function buildGroundVoxels(pitch: number) {
   return voxels;
 }
 
-function VoxelMesh({ voxels }: { voxels: Voxel[] }) {
-  const ref = useRef<THREE.InstancedMesh>(null);
+// --- laptop screen: a real rendered code editor, not abstract color bars ---
+
+type EditorPalette = {
+  bg: string;
+  bezel: string;
+  chrome: string;
+  lineNumber: string;
+  text: string;
+  keyword: string;
+  string: string;
+  comment: string;
+  func: string;
+};
+
+const DARK_EDITOR: EditorPalette = {
+  bg: "#0b1220",
+  bezel: "#05080d",
+  chrome: "#141d2b",
+  lineNumber: "#3a4658",
+  text: "#d6deeb",
+  keyword: "#c792ea",
+  string: "#addb67",
+  comment: "#5b6b7c",
+  func: "#82aaff",
+};
+
+const LIGHT_EDITOR: EditorPalette = {
+  bg: "#fafbfc",
+  bezel: "#c9cdd6",
+  chrome: "#eef0f3",
+  lineNumber: "#c7ccd4",
+  text: "#3b4252",
+  keyword: "#a626a4",
+  string: "#50a14f",
+  comment: "#a0a1a7",
+  func: "#4078f2",
+};
+
+type Token = { text: string; type: keyof EditorPalette };
+const CODE_LINES: { indent: number; tokens: Token[] }[] = [
+  {
+    indent: 0,
+    tokens: [
+      { text: "export ", type: "keyword" },
+      { text: "function ", type: "keyword" },
+      { text: "buildPortfolio", type: "func" },
+      { text: "(dev) {", type: "text" },
+    ],
+  },
+  {
+    indent: 1,
+    tokens: [
+      { text: "const ", type: "keyword" },
+      { text: "stack ", type: "text" },
+      { text: "= [", type: "text" },
+      { text: "'react'", type: "string" },
+      { text: ", ", type: "text" },
+      { text: "'node'", type: "string" },
+      { text: "];", type: "text" },
+    ],
+  },
+  { indent: 1, tokens: [{ text: "// ship it end to end", type: "comment" }] },
+  {
+    indent: 1,
+    tokens: [
+      { text: "if ", type: "keyword" },
+      { text: "(dev.", type: "text" },
+      { text: "ships", type: "func" },
+      { text: ") {", type: "text" },
+    ],
+  },
+  {
+    indent: 2,
+    tokens: [
+      { text: "return ", type: "keyword" },
+      { text: "dev.", type: "text" },
+      { text: "hire", type: "func" },
+      { text: "();", type: "text" },
+    ],
+  },
+  { indent: 1, tokens: [{ text: "}", type: "text" }] },
+  { indent: 0, tokens: [{ text: "}", type: "text" }] },
+];
+
+function drawEditorTexture(canvas: HTMLCanvasElement, palette: EditorPalette, accent: string, cursorOn: boolean) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.fillStyle = palette.bezel;
+  ctx.fillRect(0, 0, w, h);
+
+  const inset = w * 0.018;
+  ctx.fillStyle = palette.bg;
+  ctx.fillRect(inset, inset, w - inset * 2, h - inset * 2);
+
+  const barH = h * 0.1;
+  ctx.fillStyle = palette.chrome;
+  ctx.fillRect(inset, inset, w - inset * 2, barH);
+
+  const dotR = barH * 0.16;
+  const dotColors = ["#ff5f56", "#ffbd2e", "#27c93f"];
+  dotColors.forEach((c, i) => {
+    ctx.beginPath();
+    ctx.fillStyle = c;
+    ctx.arc(inset + barH * 0.55 + i * dotR * 2.8, inset + barH * 0.5, dotR, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.fillStyle = palette.lineNumber;
+  ctx.font = `${barH * 0.32}px "Courier New", monospace`;
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  ctx.fillText("index.ts", inset + barH * 0.55 + dotColors.length * dotR * 2.8, inset + barH * 0.5);
+
+  const fontSize = h * 0.058;
+  ctx.font = `${fontSize}px "Courier New", monospace`;
+  ctx.textBaseline = "top";
+  const lineHeight = fontSize * 1.7;
+  const padX = inset + w * 0.045;
+  const padTop = inset + barH + lineHeight * 0.6;
+  const lineNumW = w * 0.055;
+
+  let lastX = padX + lineNumW;
+  let lastY = padTop;
+
+  CODE_LINES.forEach((line, i) => {
+    const y = padTop + i * lineHeight;
+    ctx.fillStyle = palette.lineNumber;
+    ctx.textAlign = "right";
+    ctx.fillText(String(i + 1), padX + lineNumW - fontSize * 0.5, y);
+    ctx.textAlign = "left";
+
+    let x = padX + lineNumW + line.indent * fontSize * 1.5;
+    line.tokens.forEach((tok) => {
+      ctx.fillStyle = palette[tok.type];
+      ctx.fillText(tok.text, x, y);
+      x += ctx.measureText(tok.text).width;
+    });
+    lastX = x;
+    lastY = y;
+  });
+
+  if (cursorOn) {
+    ctx.fillStyle = accent;
+    ctx.fillRect(lastX + fontSize * 0.15, lastY, fontSize * 0.5, fontSize * 1.2);
+  }
+}
+
+function ScreenDisplay({
+  theme,
+  accent,
+}: {
+  theme: ThemeMode;
+  accent: string;
+}) {
+  // The canvas/texture are a pure imperative side-channel: created once
+  // inside an effect (never read during render) and repainted in place via
+  // `needsUpdate`. The material itself is reached through a JSX ref rather
+  // than a prop, since assigning `.map` is also a mutation, not a render value.
+  const materialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  const paintRef = useRef<{ canvas: HTMLCanvasElement; texture: THREE.CanvasTexture } | null>(null);
+  const cursorOn = useRef(true);
+
+  const redraw = useCallback(() => {
+    const paint = paintRef.current;
+    if (!paint) return;
+    drawEditorTexture(paint.canvas, theme === "dark" ? DARK_EDITOR : LIGHT_EDITOR, accent, cursorOn.current);
+    paint.texture.needsUpdate = true;
+  }, [theme, accent]);
 
   useEffect(() => {
-    const mesh = ref.current;
-    if (!mesh) return;
-    const m = new THREE.Matrix4();
-    voxels.forEach((v, i) => {
-      m.makeScale(v.scale, v.scale, v.scale);
-      m.setPosition(v.position);
-      mesh.setMatrixAt(i, m);
-      mesh.setColorAt(i, v.color);
-    });
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [voxels]);
+    if (!paintRef.current) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1024;
+      canvas.height = 620;
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      paintRef.current = { canvas, texture };
+      if (materialRef.current) {
+        materialRef.current.map = texture;
+        materialRef.current.needsUpdate = true;
+      }
+    }
+    redraw();
+    // Cheap: redraws a small offscreen canvas twice a second, not per-frame.
+    const id = setInterval(() => {
+      cursorOn.current = !cursorOn.current;
+      redraw();
+    }, 530);
+    return () => clearInterval(id);
+  }, [redraw]);
+
+  useEffect(() => {
+    return () => paintRef.current?.texture.dispose();
+  }, []);
+
+  const cos = Math.cos(SCREEN_TILT);
+  const sin = Math.sin(SCREEN_TILT);
+  const half = SCREEN_HEIGHT / 2;
+  const position: [number, number, number] = [HINGE.x, HINGE.y + half * cos, HINGE.z + half * sin];
+  const bezel = CHASSIS[theme].deck;
 
   return (
-    <instancedMesh ref={ref} args={[undefined, undefined, voxels.length]}>
-      <boxGeometry args={[1, 1, 1]} />
-      {/* Unlit on purpose: color already carries all the shading, and
-          skipping per-pixel lighting matters once this canvas is full-bleed. */}
-      <meshBasicMaterial toneMapped={false} />
-    </instancedMesh>
+    <mesh position={position} rotation={[SCREEN_TILT, 0, 0]}>
+      {/* A thin box, not a flat plane, so the lid has real edges; the code
+          texture only goes on the front (+z) face — box materials are
+          ordered [+x,-x,+y,-y,+z,-z], so index 4 is the face that ends up
+          pointed at the camera once tilted. */}
+      <boxGeometry args={[BASE_WIDTH * 0.97, SCREEN_HEIGHT * 0.95, 0.05]} />
+      <meshBasicMaterial attach="material-0" color={bezel} toneMapped={false} />
+      <meshBasicMaterial attach="material-1" color={bezel} toneMapped={false} />
+      <meshBasicMaterial attach="material-2" color={bezel} toneMapped={false} />
+      <meshBasicMaterial attach="material-3" color={bezel} toneMapped={false} />
+      <meshBasicMaterial ref={materialRef} attach="material-4" toneMapped={false} />
+      <meshBasicMaterial attach="material-5" color={bezel} toneMapped={false} />
+    </mesh>
   );
 }
 
-function Laptop({ onToggleTheme, showHint }: { onToggleTheme: () => void; showHint: boolean }) {
-  const voxels = useMemo(() => buildLaptopVoxels(0.055), []);
+function Laptop({
+  theme,
+  accent,
+  onToggleTheme,
+  showHint,
+}: {
+  theme: ThemeMode;
+  accent: string;
+  onToggleTheme: () => void;
+  showHint: boolean;
+}) {
+  const shape = useMemo(() => buildLaptopShape(0.055), []);
+  // Only colors are re-derived on theme change — positions stay put so the
+  // chassis doesn't visibly reshuffle every time you click it.
+  const voxels = useMemo(
+    () => shape.map((s) => ({ position: s.position, scale: s.scale, color: roleColor(s.role, theme) })),
+    [shape, theme]
+  );
   const group = useRef<THREE.Group>(null);
 
   useFrame(({ clock }) => {
@@ -204,6 +433,7 @@ function Laptop({ onToggleTheme, showHint }: { onToggleTheme: () => void; showHi
       onPointerOut={() => setHoverCursor(false)}
     >
       <VoxelMesh voxels={voxels} />
+      <ScreenDisplay theme={theme} accent={accent} />
       {showHint && (
         <Html position={[0, 0.7, 0.3]} center transform={false} zIndexRange={[10, 0]}>
           <div className="laptop-hint pointer-events-none flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/30 bg-[#0d1a24] px-3 py-1.5 font-mono text-[11px] uppercase tracking-wide text-[#8fe3ff] shadow-lg">
@@ -259,11 +489,13 @@ function Ground() {
 }
 
 function Scene({
+  theme,
   accent,
   showHint,
   onToggleTheme,
   onCycleAccent,
 }: {
+  theme: ThemeMode;
   accent: string;
   showHint: boolean;
   onToggleTheme: () => void;
@@ -271,13 +503,13 @@ function Scene({
 }) {
   const parallax = useRef<THREE.Group>(null);
 
-  // Handles the idle ambient spin itself (rather than OrbitControls'
-  // autoRotate) so it works identically whether or not OrbitControls is
-  // even mounted — see the note by HeroScene on why touch devices skip it
-  // entirely.
+  // A bounded sway (not an unbounded spin) so the laptop never turns far
+  // enough to show the screen edge-on, and reads as a product shot rather
+  // than a rotisserie.
   useFrame(({ pointer, clock }) => {
     if (parallax.current) {
-      const target = clock.elapsedTime * 0.08 + pointer.x * 0.2;
+      const sway = Math.sin(clock.elapsedTime * 0.15) * 0.18;
+      const target = sway + pointer.x * 0.2;
       parallax.current.rotation.y = THREE.MathUtils.lerp(parallax.current.rotation.y, target, 0.04);
     }
   });
@@ -288,7 +520,7 @@ function Scene({
       <fog attach="fog" args={["#081420", 5, 14]} />
       <Sparkles count={50} scale={10} size={1.4} speed={0.15} opacity={0.5} color="#bfe9ff" />
       <group ref={parallax} position={[2.2, 0, 0]}>
-        <Laptop onToggleTheme={onToggleTheme} showHint={showHint} />
+        <Laptop theme={theme} accent={accent} onToggleTheme={onToggleTheme} showHint={showHint} />
         <Spark accent={accent} onCycleAccent={onCycleAccent} />
       </group>
       <Ground />
@@ -314,11 +546,13 @@ function Controls() {
 }
 
 export function HeroScene({
+  theme,
   accent,
   showHint,
   onToggleTheme,
   onCycleAccent,
 }: {
+  theme: ThemeMode;
   accent: string;
   accent2: string;
   showHint: boolean;
@@ -340,7 +574,7 @@ export function HeroScene({
       dpr={[1, 1.4]}
     >
       <Suspense fallback={null}>
-        <Scene accent={accent} showHint={showHint} onToggleTheme={onToggleTheme} onCycleAccent={onCycleAccent} />
+        <Scene theme={theme} accent={accent} showHint={showHint} onToggleTheme={onToggleTheme} onCycleAccent={onCycleAccent} />
       </Suspense>
       {!isTouch && <Controls />}
     </Canvas>

@@ -71,61 +71,63 @@ html {
 }
 
 /* The hero's colour lives here rather than in the 3D scene, so it follows
-   the site theme for free and costs nothing to render. Two of the washes
-   are keyed to --accent/--accent-2, so cycling the accent recolours the
-   whole hero, not just the buttons. */
+   the site theme for free and costs nothing to render. The washes are keyed
+   to --accent/--accent-2, so cycling the accent recolours the whole hero,
+   not just the buttons. Both themes are saturated on purpose — a near-white
+   hero reads as unfinished next to the laptop. */
 .hero-bg {
   background:
     radial-gradient(
-      1000px 700px at 76% 14%,
-      color-mix(in oklab, var(--accent) 34%, transparent),
-      transparent 66%
+      1000px 720px at 78% 12%,
+      color-mix(in oklab, var(--accent) 52%, transparent),
+      transparent 64%
     ),
     radial-gradient(
-      760px 560px at 8% 74%,
-      color-mix(in oklab, var(--accent-2) 34%, transparent),
-      transparent 68%
+      800px 600px at 4% 72%,
+      color-mix(in oklab, var(--accent-2) 52%, transparent),
+      transparent 66%
     ),
-    radial-gradient(820px 640px at 46% 106%, color-mix(in oklab, #22d3ee 30%, transparent), transparent 68%),
-    linear-gradient(155deg, #fbfaff 0%, #eef1fc 42%, #e2ecf9 100%);
+    radial-gradient(880px 680px at 44% 104%, color-mix(in oklab, #22d3ee 46%, transparent), transparent 66%),
+    linear-gradient(155deg, #eceffc 0%, #e3e9f8 45%, #d6e4f4 100%);
 }
 
 html[data-theme="dark"] .hero-bg {
   background:
     radial-gradient(
-      1000px 700px at 76% 14%,
-      color-mix(in oklab, var(--accent) 46%, transparent),
-      transparent 68%
+      1000px 720px at 78% 12%,
+      color-mix(in oklab, var(--accent) 50%, transparent),
+      transparent 66%
     ),
     radial-gradient(
-      760px 560px at 10% 76%,
-      color-mix(in oklab, var(--accent-2) 30%, transparent),
-      transparent 70%
+      800px 600px at 4% 72%,
+      color-mix(in oklab, var(--accent-2) 34%, transparent),
+      transparent 68%
     ),
-    radial-gradient(820px 640px at 46% 108%, color-mix(in oklab, #22d3ee 26%, transparent), transparent 70%),
+    radial-gradient(880px 680px at 44% 104%, color-mix(in oklab, #22d3ee 32%, transparent), transparent 68%),
     linear-gradient(155deg, #080c17 0%, #10142a 46%, #0a1220 100%);
 }
 
 /* Keeps the headline legible over the washes without flattening them —
-   opaque at the left edge, gone by the time it reaches the laptop. */
+   strongest at the left edge, gone by the time it reaches the laptop. */
 .hero-scrim {
   background: linear-gradient(
     to right,
-    color-mix(in oklab, var(--bg) 56%, transparent) 0%,
-    color-mix(in oklab, var(--bg) 22%, transparent) 42%,
-    transparent 68%
+    color-mix(in oklab, var(--bg) 50%, transparent) 0%,
+    color-mix(in oklab, var(--bg) 18%, transparent) 42%,
+    transparent 70%
   );
 }
 
-/* Below the 3D scene's own breakpoint the laptop sits at the bottom of the
-   frame rather than to the right, so the scrim has to run the other way. */
-@media (max-width: 899px) {
+/* Matches the `lg` breakpoint used by hero.tsx and hero-scene.tsx: below it
+   the laptop sits at the bottom of the frame rather than to the right, so
+   the scrim has to run the other way. */
+@media (max-width: 1023px) {
   .hero-scrim {
     background: linear-gradient(
       to bottom,
-      color-mix(in oklab, var(--bg) 62%, transparent) 0%,
-      color-mix(in oklab, var(--bg) 34%, transparent) 50%,
-      transparent 78%
+      color-mix(in oklab, var(--bg) 60%, transparent) 0%,
+      color-mix(in oklab, var(--bg) 30%, transparent) 50%,
+      transparent 80%
     );
   }
 }

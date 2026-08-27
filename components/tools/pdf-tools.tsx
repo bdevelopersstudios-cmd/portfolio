@@ -5,6 +5,7 @@ import { Dropzone, ErrorNote, ToolButton } from "./dropzone";
 import { Stagger, StatusArea, stagStep } from "./ui";
 import { motion } from "motion/react";
 import { downloadBlob, formatBytes, pdfWorkerSrc, swapExtension } from "@/lib/tools";
+import { track } from "@/components/analytics";
 
 /**
  * pdf-lib and pdf.js are both imported dynamically. Together they are over a
@@ -162,6 +163,7 @@ export function PdfToImages() {
         await new Promise((r) => setTimeout(r, 0));
       }
       setPages(out);
+      track("tool_run", { tool: "pdf-to-images", pages: out.length });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not read that PDF.");
     } finally {

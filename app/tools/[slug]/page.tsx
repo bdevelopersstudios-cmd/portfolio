@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TOOLS, toolBySlug } from "@/lib/tools";
 import { ToolRunner } from "@/components/tools/tool-runner";
+import { ToolFooter } from "@/components/tools/tool-footer";
 
 export function generateStaticParams() {
   return TOOLS.map((t) => ({ slug: t.slug }));
@@ -47,6 +48,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
       <section className="pb-24">
         <div className="mx-auto max-w-3xl px-6 sm:px-10">
           <ToolRunner slug={tool.slug} />
+          <ToolFooter tool={tool} />
         </div>
       </section>
     </main>

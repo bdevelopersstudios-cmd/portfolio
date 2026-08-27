@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Dropzone, ErrorNote, ToolButton } from "./dropzone";
 import { StatusArea } from "./ui";
 import { downloadBlob, pdfWorkerSrc, swapExtension } from "@/lib/tools";
+import { track } from "@/components/analytics";
 
 /**
  * OCR in the browser, via Tesseract's WebAssembly build.
@@ -98,6 +99,7 @@ export function OcrTool() {
 
       const joined = parts.join("\n\n");
       setText(joined);
+      track("tool_run", { tool: "ocr", lang, chars: joined.length });
       if (joined.replace(/--- Page \d+ ---/g, "").trim().length === 0) {
         setError("Nothing legible was found. A straighter, higher-contrast scan usually helps.");
       }

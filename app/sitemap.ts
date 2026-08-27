@@ -11,6 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [
     { url: SITE, lastModified: now, changeFrequency: "monthly", priority: 1 },
+    { url: `${SITE}/services`, lastModified: now, changeFrequency: "monthly", priority: 0.95 },
     { url: `${SITE}/templates`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
     // The tools are the pages most likely to be found by search — each one
     // answers a query somebody is actively typing — so they are listed

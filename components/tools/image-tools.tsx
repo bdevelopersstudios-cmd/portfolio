@@ -13,6 +13,7 @@ import {
   swapExtension,
   type FormatId,
 } from "@/lib/tools";
+import { track } from "@/components/analytics";
 
 type Result = {
   name: string;
@@ -123,6 +124,7 @@ function ImageEngine({ mode }: { mode: "convert" | "compress" }) {
         await new Promise((r) => setTimeout(r, 0));
       }
       setResults(out);
+      track("tool_run", { tool: mode === "compress" ? "image-compress" : "image-convert", files: out.length });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong converting that file.");
     } finally {

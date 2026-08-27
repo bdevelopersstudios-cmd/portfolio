@@ -559,6 +559,157 @@ function ContactShadow({ color, opacity }: { color: string; opacity: number }) {
   );
 }
 
+// --- interactive voxel field ---
+
+/** Vivid hues scattered through the field, matching the editor's syntax colours. */
+const FIELD_VIVID = ["#5ec8ff", "#ff6ec7", "#ffd166", "#7dffb3", "#b39bff"];
+
+/** `far` deliberately lands on the CSS gradient behind the canvas, so distant
+ *  boxes dissolve into the background instead of ending at a hard edge. */
+const FIELD_TONES: Record<ThemeMode, { near: string; far: string }> = {
+  dark: { near: "#16334a", far: "#0d1526" },
+  // Much darker than they look: the scene's lights are set bright for the
+  // laptop's aluminium, and anything lighter blows out to flat white here.
+  light: { near: "#6c8cb8", far: "#a9c0dc" },
+};
+
+/** z range is tuned to the camera: the plane is on screen from roughly z=+1
+ *  (bottom edge) back to the horizon, so anything nearer is wasted. */
+const FIELD_Z_NEAR = 2;
+const FIELD_Z_FAR = -11;
+const FIELD_CELL = 0.58;
+/** How far the cursor's influence reaches across the field, in world units. */
+const FIELD_REACH = 2.6;
+const FIELD_LIFT = 0.3;
+
+type FieldBox = {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+  h: number;
+  d: number;
+  tone: number;
+  vivid: number;
+  phase: number;
+};
+
+function buildField(): FieldBox[] {
+  const boxes: FieldBox[] = [];
+  for (let z = FIELD_Z_FAR; z <= FIELD_Z_NEAR; z += FIELD_CELL) {
+    // Widen with distance so the field tracks the frustum instead of being a
+    // rectangle whose near corners sit off screen.
+    const halfWidth = 3 + (FIELD_Z_NEAR - z) * 0.78;
+    for (let x = -halfWidth; x <= halfWidth; x += FIELD_CELL) {
+      if (Math.random() > 0.5) continue;
+      const jx = x + (Math.random() - 0.5) * FIELD_CELL * 0.7;
+      const jz = z + (Math.random() - 0.5) * FIELD_CELL * 0.7;
+      const big = Math.random() < 0.1;
+      const w = (big ? 0.44 : 0.22) + Math.random() * 0.14;
+      const tone = THREE.MathUtils.clamp((FIELD_Z_NEAR - jz) / (FIELD_Z_NEAR - FIELD_Z_FAR), 0, 1);
+      boxes.push({
+        x: jx,
+        y: (Math.random() - 0.5) * 0.1,
+        z: jz,
+        w,
+        d: w * (0.8 + Math.random() * 0.4),
+        h: 0.08 + Math.random() * (big ? 0.3 : 0.18),
+        tone,
+        // Vivid boxes are kept to the near half: far ones sit up behind the
+        // headline on screen, where a bright block is just a distraction.
+        vivid: tone < 0.55 && Math.random() < 0.13 ? Math.floor(Math.random() * FIELD_VIVID.length) : -1,
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+  return boxes;
+}
+
+// Scratch objects reused every frame — the usual three.js way of keeping a
+// per-frame loop allocation-free. Safe as module state because exactly one
+// field is ever mounted.
+const _up = new THREE.Vector3(0, 1, 0);
+const _ray = new THREE.Raycaster();
+const _plane = new THREE.Plane();
+const _hit = new THREE.Vector3();
+const _m = new THREE.Matrix4();
+const _p = new THREE.Vector3();
+const _s = new THREE.Vector3();
+const _q = new THREE.Quaternion();
+const _col = new THREE.Color();
+
+function VoxelField({ theme, accent, y }: { theme: ThemeMode; accent: string; y: number }) {
+  const ref = useRef<THREE.InstancedMesh>(null);
+  const boxes = useMemo(() => buildField(), []);
+
+  // Only colour depends on the theme — the layout is generated once so the
+  // field doesn't reshuffle itself every time the laptop is clicked.
+  const colors = useMemo(() => {
+    const near = new THREE.Color(FIELD_TONES[theme].near);
+    const far = new THREE.Color(FIELD_TONES[theme].far);
+    return boxes.map((b) =>
+      b.vivid >= 0 ? new THREE.Color(FIELD_VIVID[b.vivid]) : near.clone().lerp(far, b.tone)
+    );
+  }, [boxes, theme]);
+
+  const glow = useMemo(() => new THREE.Color(accent), [accent]);
+
+  useFrame(({ clock, pointer, camera }) => {
+    const mesh = ref.current;
+    if (!mesh) return;
+
+    // Where the cursor lands on the field's plane, which is what the boxes
+    // respond to. Null when the pointer is above the horizon.
+    _plane.set(_up, -y);
+    _ray.setFromCamera(pointer, camera);
+    const hit = _ray.ray.intersectPlane(_plane, _hit);
+
+    const t = clock.elapsedTime;
+    for (let i = 0; i < boxes.length; i++) {
+      const b = boxes[i];
+      let lift = Math.sin(t * 0.7 + b.phase) * 0.045;
+      let mix = 0;
+
+      if (hit) {
+        const dx = b.x - _hit.x;
+        const dz = b.z - _hit.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < FIELD_REACH) {
+          const f = 1 - dist / FIELD_REACH;
+          mix = f * f * (3 - 2 * f); // smoothstep falloff
+          lift += mix * FIELD_LIFT;
+        }
+      }
+
+      _p.set(b.x, b.y + lift, b.z);
+      _s.set(b.w, b.h * (1 + mix * 0.5), b.d);
+      _m.compose(_p, _q, _s);
+      mesh.setMatrixAt(i, _m);
+
+      _col.copy(colors[i]).lerp(glow, mix * 0.6);
+      mesh.setColorAt(i, _col);
+    }
+
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  });
+
+  return (
+    // frustumCulled off: the bounding sphere is derived from instance
+    // matrices, and this mesh rewrites them every frame — a stale sphere
+    // would pop the whole field out of view. It fills the frame regardless.
+    <instancedMesh
+      ref={ref}
+      position={[0, y, 0]}
+      frustumCulled={false}
+      args={[undefined, undefined, boxes.length]}
+    >
+      <boxGeometry args={[1, 1, 1]} />
+      <meshLambertMaterial />
+    </instancedMesh>
+  );
+}
+
 function Scene({
   theme,
   accent,
@@ -576,14 +727,15 @@ function Scene({
   const { size } = useThree();
   const c = CHASSIS[theme];
 
-  // Narrow viewports can't fit the machine beside the copy, so it drops
-  // behind and below it instead of running off the right edge.
   // Below the layout's `lg` breakpoint there isn't room to sit the machine
   // beside the copy, so it drops to the bottom of the frame and the copy
   // stacks above it. Keep this threshold in step with hero.tsx.
   const narrow = size.width < 1024;
   const rigPosition: [number, number, number] = narrow ? [0, -2.9, -0.4] : [1.85, -0.7, 0];
   const rigScale = narrow ? THREE.MathUtils.clamp(size.width / 900, 0.5, 0.72) : 0.78;
+  // The field sits just under the laptop in either layout, so the machine
+  // reads as standing on it rather than floating over it.
+  const fieldY = narrow ? -3.2 : -1.9;
 
   // A bounded sway rather than a full spin — the lid has a real front and
   // back now, so a continuous rotation would swing its blank side into view.
@@ -608,6 +760,8 @@ function Scene({
         <Lightformer intensity={1} position={[-5, 1, 2]} scale={[6, 8, 1]} />
         <Lightformer intensity={0.9} position={[5, 2, 1]} scale={[6, 8, 1]} color={accent} />
       </Environment>
+
+      <VoxelField theme={theme} accent={accent} y={fieldY} />
 
       <group ref={rig} position={rigPosition} scale={rigScale}>
         {/* On phones the copy's own "it's interactive" line sits right where

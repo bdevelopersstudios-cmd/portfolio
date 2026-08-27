@@ -42,3 +42,7 @@ next-env.d.ts
 
 # claude code local session state
 .claude/
+
+# Copied from node_modules on every build by scripts/copy-pdf-worker.mjs,
+# so committing it would only risk it drifting from the installed version.
+/public/pdf.worker.min.mjs

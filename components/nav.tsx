@@ -106,6 +106,13 @@ export function Nav() {
             </Link>
           ))}
           <Link
+            href="/tools"
+            data-cursor-hover
+            className={`transition-colors hover:text-accent ${pathname?.startsWith("/tools") ? "text-accent" : ""}`}
+          >
+            Tools
+          </Link>
+          <Link
             href="/templates"
             data-cursor-hover
             className={`transition-colors hover:text-accent ${!isHome ? "text-accent" : ""}`}
@@ -163,6 +170,13 @@ export function Nav() {
               {link.label}
             </Link>
           ))}
+          <Link
+            href="/tools"
+            onClick={() => setOpen(false)}
+            className="border-b border-line-soft py-4"
+          >
+            Tools
+          </Link>
           <Link
             href="/templates"
             onClick={() => setOpen(false)}

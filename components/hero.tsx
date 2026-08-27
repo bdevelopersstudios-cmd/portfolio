@@ -16,7 +16,7 @@ export function Hero() {
   const { theme, accent, hasDiscoveredLaptop, toggleTheme, cycleAccent } = useTheme();
 
   return (
-    <section id="top" className="relative min-h-[100svh] w-full overflow-hidden bg-[#081420]">
+    <section id="top" className="hero-bg relative min-h-[100svh] w-full overflow-hidden">
       <div id="hero-3d" className="absolute inset-0 z-0">
         <HeroScene
           theme={theme}
@@ -28,17 +28,17 @@ export function Hero() {
         />
       </div>
 
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-[#081420] via-[#081420]/60 to-transparent"
-      />
+      <div aria-hidden="true" className="hero-scrim pointer-events-none absolute inset-0 z-[1]" />
 
-      <div className="pointer-events-none relative z-10 mx-auto flex min-h-[100svh] max-w-[1400px] flex-col justify-center px-6 py-28 sm:px-10 lg:px-16">
+      {/* Below `lg` the laptop occupies the bottom of the frame, so the copy
+          centres itself in the band above it rather than in the whole hero —
+          that keeps the gap consistent from a phone to a tall tablet. */}
+      <div className="pointer-events-none relative z-10 mx-auto flex min-h-[62svh] max-w-[1400px] flex-col justify-center px-6 pt-24 sm:px-10 lg:min-h-[100svh] lg:px-16 lg:py-28">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-5 flex items-center gap-3 font-mono text-xs uppercase tracking-[0.2em] text-white/70"
+          className="mb-5 flex items-center gap-3 font-mono text-xs uppercase tracking-[0.2em] text-ink-dim"
         >
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
@@ -47,7 +47,9 @@ export function Hero() {
           Available for new work &middot; {profile.location}
         </motion.div>
 
-        <h1 className="font-display text-[clamp(2.75rem,9vw,5.2rem)] leading-[0.98] text-balance text-white">
+        {/* Width is tuned so "Full-stack products," fills line one and the
+            rest falls to line two; text-balance would even them into three. */}
+        <h1 className="max-w-[45rem] font-display text-[clamp(2.5rem,6vw,4.1rem)] leading-[1.04] text-ink">
           {headlineWords.map((word, i) => (
             <span key={i} className="inline-block overflow-hidden pb-1 pr-[0.22em] align-bottom">
               <motion.span
@@ -66,22 +68,25 @@ export function Hero() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.65 }}
-          className="mt-5 max-w-md text-lg text-white/70 text-balance"
+          className="mt-5 max-w-md text-lg text-ink-dim text-balance"
         >
           I&apos;m {profile.name} — a developer who takes a product from a Figma
           file through database migrations, without losing the seams in between.
         </motion.p>
 
+        {/* This row stays pointer-events-none: it is full-width, so enabling
+            pointer events here would blanket the canvas and swallow clicks
+            meant for the laptop. MagneticButton re-enables them on itself. */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.8 }}
-          className="pointer-events-auto mt-8 flex flex-wrap items-center gap-4"
+          className="mt-8 flex flex-wrap items-center gap-4"
         >
           <MagneticButton href="#work" variant="solid">
             View selected work
           </MagneticButton>
-          <MagneticButton href="#contact" variant="outline-light">
+          <MagneticButton href="#contact" variant="outline">
             Get in touch
           </MagneticButton>
         </motion.div>
@@ -94,7 +99,7 @@ export function Hero() {
             scale: { duration: 1.6, repeat: hasDiscoveredLaptop ? 0 : Infinity, ease: "easeInOut" },
           }}
           className={`pointer-events-none mt-8 font-mono text-[11px] uppercase tracking-[0.15em] ${
-            hasDiscoveredLaptop ? "text-white/40" : "font-semibold text-accent"
+            hasDiscoveredLaptop ? "text-ink-faint" : "font-semibold text-accent"
           }`}
         >
           {hasDiscoveredLaptop
@@ -107,10 +112,10 @@ export function Hero() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 1.2 }}
-        className="pointer-events-none absolute bottom-4 left-1/2 z-10 hidden -translate-x-1/2 flex-col items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 sm:flex"
+        className="pointer-events-none absolute bottom-4 left-1/2 z-10 hidden -translate-x-1/2 flex-col items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-ink-faint lg:flex"
       >
         <span>Scroll</span>
-        <span className="h-6 w-px bg-gradient-to-b from-white/40 to-transparent" />
+        <span className="h-6 w-px bg-gradient-to-b from-[var(--ink-faint)] to-transparent" />
       </motion.div>
     </section>
   );

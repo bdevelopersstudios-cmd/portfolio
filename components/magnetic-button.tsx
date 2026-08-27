@@ -12,7 +12,7 @@ export function MagneticButton({
 }: {
   children: ReactNode;
   href?: string;
-  variant?: "solid" | "outline" | "outline-light";
+  variant?: "solid" | "outline";
   className?: string;
   onClick?: () => void;
 }) {
@@ -27,14 +27,16 @@ export function MagneticButton({
     setOffset({ x: relX * 0.3, y: relY * 0.3 });
   };
 
+  // pointer-events-auto so the button still works inside a pointer-events-none
+  // container (the hero overlays one over the 3D canvas); a no-op elsewhere.
   const base =
-    "relative inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 font-mono text-xs uppercase tracking-[0.15em] transition-colors duration-300";
+    "pointer-events-auto relative inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 font-mono text-xs uppercase tracking-[0.15em] transition-colors duration-300";
   const styles =
     variant === "solid"
-      ? "bg-accent text-accent-ink hover:bg-[#2347d6]"
-      : variant === "outline-light"
-        ? "border border-white/30 text-white hover:border-white hover:bg-white/10"
-        : "border border-line text-ink hover:border-accent hover:text-accent";
+      ? "bg-accent text-accent-ink hover:bg-accent-dim"
+      : // A touch stronger than --line, which disappears against the hero's
+        // gradient wash where this button also has to read.
+        "border border-ink/20 text-ink hover:border-accent hover:text-accent";
 
   return (
     <motion.a

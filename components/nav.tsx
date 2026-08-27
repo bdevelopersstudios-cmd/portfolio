@@ -27,11 +27,6 @@ export function Nav() {
   }, []);
 
   const sectionHref = (hash: string) => (isHome ? `#${hash}` : `/#${hash}`);
-  // The homepage hero is a fixed dark scene regardless of the site's own
-  // light/dark toggle, so the nav needs light text there specifically —
-  // once scrolled (or off the homepage entirely) it's over the normal
-  // theme-driven background and can use the normal theme-driven colors.
-  const overDarkHero = isHome && !scrolled;
 
   return (
     <motion.header
@@ -43,25 +38,17 @@ export function Nav() {
       }`}
     >
       <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-5 sm:px-10 lg:px-16">
-        <Link
-          href="/"
-          data-cursor-hover
-          className={`font-display text-lg tracking-tight ${overDarkHero ? "text-white" : ""}`}
-        >
+        <Link href="/" data-cursor-hover className="font-display text-lg tracking-tight text-ink">
           U<span className="text-accent">.</span>Saud
         </Link>
 
-        <nav
-          className={`hidden items-center gap-8 font-mono text-xs uppercase tracking-[0.15em] md:flex ${
-            overDarkHero ? "text-white/70" : "text-ink-dim"
-          }`}
-        >
+        <nav className="hidden items-center gap-8 font-mono text-xs uppercase tracking-[0.15em] text-ink-dim lg:flex">
           {sectionLinks.map((link) => (
             <Link
               key={link.hash}
               href={sectionHref(link.hash)}
               data-cursor-hover
-              className={`transition-colors ${overDarkHero ? "hover:text-white" : "hover:text-accent"}`}
+              className="transition-colors hover:text-accent"
             >
               {link.label}
             </Link>
@@ -69,9 +56,7 @@ export function Nav() {
           <Link
             href="/templates"
             data-cursor-hover
-            className={`transition-colors ${overDarkHero ? "hover:text-white" : "hover:text-accent"} ${
-              !isHome ? "text-accent" : ""
-            }`}
+            className={`transition-colors hover:text-accent ${!isHome ? "text-accent" : ""}`}
           >
             Templates
           </Link>
@@ -80,9 +65,7 @@ export function Nav() {
         <a
           href={`mailto:${profile.email}`}
           data-cursor-hover
-          className={`hidden font-mono text-xs uppercase tracking-[0.15em] transition-colors md:block ${
-            overDarkHero ? "text-white/70 hover:text-white" : "text-ink-dim hover:text-accent"
-          }`}
+          className="hidden font-mono text-xs uppercase tracking-[0.15em] text-ink-dim transition-colors hover:text-accent lg:block"
         >
           {profile.email}
         </a>
@@ -90,16 +73,16 @@ export function Nav() {
         <button
           data-cursor-hover
           onClick={() => setOpen((v) => !v)}
-          className="flex flex-col gap-1.5 md:hidden"
+          className="flex flex-col gap-1.5 lg:hidden"
           aria-label="Toggle menu"
         >
           <span
-            className={`h-px w-6 transition-transform ${overDarkHero ? "bg-white" : "bg-ink"} ${
+            className={`h-px w-6 bg-ink transition-transform ${
               open ? "translate-y-[3.5px] rotate-45" : ""
             }`}
           />
           <span
-            className={`h-px w-6 transition-transform ${overDarkHero ? "bg-white" : "bg-ink"} ${
+            className={`h-px w-6 bg-ink transition-transform ${
               open ? "-translate-y-[3.5px] -rotate-45" : ""
             }`}
           />
@@ -111,7 +94,7 @@ export function Nav() {
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: "auto", opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
-          className="flex flex-col gap-1 overflow-hidden border-t border-line-soft bg-bg px-6 pb-6 font-mono text-sm uppercase tracking-[0.15em] text-ink-dim md:hidden"
+          className="flex flex-col gap-1 overflow-hidden border-t border-line-soft bg-bg px-6 pb-6 font-mono text-sm uppercase tracking-[0.15em] text-ink-dim lg:hidden"
         >
           {sectionLinks.map((link) => (
             <Link

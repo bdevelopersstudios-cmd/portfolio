@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "motion/react";
 import { categoryLabels, type Template } from "@/lib/templates";
 import { TiltCard } from "@/components/tilt-card";
 
 export function TemplateCard({ template, index }: { template: Template; index: number }) {
+  const [from, to] = template.swatch;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
@@ -13,20 +16,43 @@ export function TemplateCard({ template, index }: { template: Template; index: n
       transition={{ duration: 0.5, delay: index * 0.08 }}
     >
       <TiltCard>
-        <div className="flex h-full flex-col overflow-hidden border border-line bg-bg-raised/60">
-          <div className="relative flex h-40 items-center justify-center overflow-hidden border-b border-line bg-bg-raised-2">
-            <span className="select-none whitespace-nowrap font-display text-6xl font-medium uppercase leading-none text-black/[0.06]">
+        <div className="flex h-full flex-col overflow-hidden border border-line bg-bg-raised">
+          {/* Each template gets its own colour, so the three read as distinct
+              products rather than three versions of one. */}
+          <Link
+            href={template.previewPath}
+            className="relative block h-44 overflow-hidden border-b border-line"
+            style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
+            aria-label={`Open the ${template.name} live preview`}
+          >
+            <span className="absolute inset-0 opacity-30 mix-blend-overlay" style={{ background: "radial-gradient(60% 60% at 30% 20%, #fff, transparent 70%)" }} />
+            <span className="absolute left-5 top-5 rounded-full border border-white/35 bg-black/15 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-white backdrop-blur-sm">
               {categoryLabels[template.category]}
             </span>
-            <span className="absolute left-4 top-4 rounded-full border border-line px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-ink-dim">
-              {categoryLabels[template.category]}
+            <span className="absolute bottom-5 left-5 font-display text-3xl text-white drop-shadow-sm">
+              {template.name}
             </span>
-          </div>
+            <span className="absolute bottom-5 right-5 rounded-full bg-white/95 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-black">
+              Live preview →
+            </span>
+          </Link>
 
           <div className="flex flex-1 flex-col p-6">
-            <h3 className="font-display text-2xl">{template.name}</h3>
-            <p className="mt-2 text-sm text-ink-dim">{template.tagline}</p>
-            <p className="mt-4 flex-1 text-sm leading-relaxed text-ink-dim">{template.description}</p>
+            <p className="text-sm text-ink-dim">{template.tagline}</p>
+            <p className="mt-4 text-sm leading-relaxed text-ink-dim">{template.description}</p>
+
+            <ul className="mt-5 space-y-2 border-t border-line-soft pt-5">
+              {template.includes.slice(0, 4).map((item) => (
+                <li key={item} className="flex items-start gap-2.5 text-[13px] text-ink-dim">
+                  <span
+                    aria-hidden="true"
+                    className="mt-[7px] h-1 w-1 shrink-0 rounded-full"
+                    style={{ background: from }}
+                  />
+                  {item}
+                </li>
+              ))}
+            </ul>
 
             <div className="mt-5 flex flex-wrap gap-2">
               {template.tech.map((t) => (
@@ -39,11 +65,17 @@ export function TemplateCard({ template, index }: { template: Template; index: n
               ))}
             </div>
 
-            <div className="mt-6 flex items-center justify-between border-t border-line-soft pt-5">
-              <span className="font-display text-xl">${template.price}</span>
-              <span className="rounded-full border border-line-soft px-4 py-2 font-mono text-[11px] uppercase tracking-wider text-ink-faint">
-                Coming soon
+            <div className="mt-auto flex items-center justify-between gap-3 border-t border-line-soft pt-5">
+              <span className="font-display text-xl">
+                ${template.price.toLocaleString()}
               </span>
+              <Link
+                href={template.previewPath}
+                data-cursor-hover
+                className="rounded-full border border-line px-4 py-2 font-mono text-[11px] uppercase tracking-wider text-ink transition-colors hover:border-accent hover:text-accent"
+              >
+                View live
+              </Link>
             </div>
           </div>
         </div>

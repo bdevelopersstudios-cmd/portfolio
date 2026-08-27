@@ -1,4 +1,4 @@
-export type TemplateCategory = "bubble" | "nextjs" | "figma";
+export type TemplateCategory = "saas" | "dashboard" | "studio";
 
 export type Template = {
   slug: string;
@@ -8,43 +8,87 @@ export type Template = {
   description: string;
   price: number;
   tech: string[];
+  /** What a buyer actually receives — the case for the price. */
+  includes: string[];
+  /** Distinct swatch per template, used on the store card. */
+  swatch: [string, string];
+  previewPath: string;
 };
 
 export const categoryLabels: Record<TemplateCategory, string> = {
-  bubble: "Bubble.io",
-  nextjs: "Next.js",
-  figma: "Figma",
+  saas: "SaaS Landing",
+  dashboard: "App Dashboard",
+  studio: "Studio Site",
 };
 
 export const templates: Template[] = [
   {
-    slug: "saas-starter",
-    name: "SaaS Starter",
-    category: "bubble",
-    tagline: "A no-code SaaS foundation with auth, billing, and a dashboard.",
+    slug: "nimbus",
+    name: "Nimbus",
+    category: "saas",
+    tagline: "A bento-grid SaaS launch page with live pricing logic.",
     description:
-      "A Bubble.io starting point for subscription products: signup/login, a Stripe-connected pricing page, a settings panel, and a dashboard shell — the plumbing every SaaS needs before the actual product work begins.",
-    price: 49,
-    tech: ["Bubble.io", "Stripe"],
+      "A complete marketing front end for a subscription product: a glass navigation bar, an oversized type hero, a bento feature grid that reflows down to one column, animated metrics, and a pricing table whose monthly/annual toggle recalculates in place. Built to be reskinned by editing one token file.",
+    price: 1000,
+    tech: ["Next.js 16", "React 19", "Tailwind v4", "Motion"],
+    includes: [
+      "7 full sections, from nav through footer",
+      "Bento grid that reflows 4 → 2 → 1 across breakpoints",
+      "Working monthly/annual pricing toggle with per-seat maths",
+      "Scroll-reveal animation on every section",
+      "Light and dark themes driven by one token set",
+      "Restrained glassmorphism — nav and cards only, for the frame cost",
+    ],
+    swatch: ["#6366f1", "#f59e0b"],
+    previewPath: "/templates/preview/nimbus",
   },
   {
-    slug: "launch-kit",
-    name: "Launch Kit",
-    category: "nextjs",
-    tagline: "A fast, animated marketing site template.",
+    slug: "console",
+    name: "Console",
+    category: "dashboard",
+    tagline: "An analytics dashboard with sortable data and a live chart.",
     description:
-      "A Next.js + Tailwind marketing site template: hero, features, pricing, and contact sections with scroll animations built in, structured the same way this portfolio is — easy to reskin for a product launch.",
-    price: 39,
-    tech: ["Next.js", "React", "Tailwind CSS"],
+      "The screen every internal tool needs first. A collapsible sidebar, a command-style search bar, a bento row of metric cards, a hand-built SVG area chart with a hover readout, and a data table you can genuinely sort and filter. No chart library — the SVG is yours to edit.",
+    price: 1000,
+    tech: ["Next.js 16", "React 19", "Tailwind v4", "Zero chart deps"],
+    includes: [
+      "Sortable, filterable table with status states",
+      "Area chart drawn in raw SVG with an interactive readout",
+      "Collapsible sidebar and command-bar search",
+      "Metric cards with trend deltas",
+      "Dark and light, switchable at runtime",
+      "No charting dependency to fight or version-bump",
+    ],
+    swatch: ["#10b981", "#0ea5e9"],
+    previewPath: "/templates/preview/console",
   },
   {
-    slug: "dashboard-ui-kit",
-    name: "Dashboard UI Kit",
-    category: "figma",
-    tagline: "A componentized dashboard design system.",
+    slug: "atelier",
+    name: "Atelier",
+    category: "studio",
+    tagline: "An editorial studio site with kinetic type and a filtered index.",
     description:
-      "A Figma file of dashboard components — nav, tables, charts, forms, and empty states — built with variants and auto-layout so a real product screen assembles from existing pieces instead of starting blank.",
-    price: 29,
-    tech: ["Figma"],
+      "For design studios and freelancers who need presence over pitch. Oversized kinetic headline, an infinite marquee, a filterable project index with hover reveals, and a warm earth-toned palette drawn from the direction 2026 actually took rather than the one the trend pieces predicted.",
+    price: 1000,
+    tech: ["Next.js 16", "React 19", "Tailwind v4", "Motion"],
+    includes: [
+      "Kinetic headline that animates per word on load",
+      "Infinite marquee that pauses on hover",
+      "Filterable project index with image-free hover reveals",
+      "Editorial two-column story layout",
+      "Warm earth palette, plus a mono-neutral alternate",
+      "Every section keyboard reachable and reduced-motion aware",
+    ],
+    swatch: ["#c2410c", "#0f766e"],
+    previewPath: "/templates/preview/atelier",
   },
+];
+
+/** Shared across all three, and the honest part of the price. */
+export const commonIncludes = [
+  "Full source, no build-step lock-in",
+  "Responsive from 360px to ultrawide",
+  "Semantic HTML and keyboard-navigable controls",
+  "prefers-reduced-motion respected throughout",
+  "Commented code written to be edited, not just shipped",
 ];

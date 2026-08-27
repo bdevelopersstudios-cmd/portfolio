@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 import { Cursor } from "@/components/cursor";
@@ -9,6 +10,15 @@ import { SmoothScroll } from "@/components/smooth-scroll";
 import { ThemeProvider } from "@/components/theme-provider";
 
 export function SiteChrome({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  // Template previews are the product being sold, so they get the viewport to
+  // themselves — none of this site's nav, cursor, grain or background, which
+  // would otherwise read as part of what the buyer is looking at.
+  if (pathname?.startsWith("/templates/preview")) {
+    return <>{children}</>;
+  }
+
   return (
     <ThemeProvider>
       <SmoothScroll />

@@ -37,7 +37,10 @@ export function Work() {
               transition={{ duration: 0.6, delay: i * 0.08 }}
             >
               <TiltCard>
-                <div className="relative overflow-hidden border border-line bg-bg-raised/60 p-8 sm:p-12">
+                {/* Opaque, not translucent: the 3D layer scrolls behind the
+                    page now, and showing it through the densest block of copy
+                    on the site made both harder to read. */}
+                <div className="relative overflow-hidden border border-line bg-bg-raised p-8 sm:p-12">
                   <span className="pointer-events-none absolute -right-4 -top-10 select-none font-display text-[9rem] leading-none text-black/[0.035] sm:text-[12rem]">
                     {item.index}
                   </span>

@@ -69,7 +69,7 @@ export function Impact() {
   });
 
   return (
-    <section ref={wrapperRef} className="relative h-[220vh] border-b border-line-soft">
+    <section id="impact" ref={wrapperRef} className="relative h-[220vh] border-b border-line-soft">
       <div className="sticky top-0 flex h-screen items-center overflow-hidden">
         <div className="mx-auto grid w-full max-w-[1400px] grid-cols-1 items-center gap-10 px-6 sm:px-10 md:grid-cols-2 md:gap-16 lg:px-16">
           <div className="relative order-2 h-40 md:order-1">

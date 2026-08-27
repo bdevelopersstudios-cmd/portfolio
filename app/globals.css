@@ -188,6 +188,94 @@ html {
   mix-blend-mode: multiply;
 }
 
+/* --- Aurora: the page's background below the hero ---------------------
+   The same mesh-gradient language the hero is built from, carried down the
+   rest of the page. Each blob is a soft radial wash painted once; scrolling
+   only ever changes `transform` and `opacity`, so the browser can treat it
+   as compositor work instead of repainting a gradient every frame.
+   Blur is deliberately avoided for the same reason — the falloff is already
+   soft, and a filter on something this large is not free. */
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  /* Fades out over the hero, which owns its own background. */
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.aurora[data-lit="true"] {
+  opacity: 1;
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+}
+
+/* Sized in vmax so the composition holds its proportions from a phone to an
+   ultrawide, rather than becoming four tiny dots on a large screen. */
+.aurora-a {
+  width: 78vmax;
+  height: 78vmax;
+  top: -26vmax;
+  right: -22vmax;
+  background: radial-gradient(circle at center, color-mix(in oklab, var(--accent) 48%, transparent), transparent 66%);
+}
+
+.aurora-b {
+  width: 66vmax;
+  height: 66vmax;
+  top: 18vmax;
+  left: -28vmax;
+  background: radial-gradient(circle at center, color-mix(in oklab, var(--accent-2) 44%, transparent), transparent 66%);
+}
+
+.aurora-c {
+  width: 72vmax;
+  height: 72vmax;
+  bottom: -30vmax;
+  left: 14vmax;
+  background: radial-gradient(circle at center, color-mix(in oklab, #22d3ee 38%, transparent), transparent 66%);
+}
+
+.aurora-d {
+  width: 54vmax;
+  height: 54vmax;
+  top: 40vmax;
+  right: 4vmax;
+  background: radial-gradient(circle at center, color-mix(in oklab, #a78bfa 36%, transparent), transparent 66%);
+}
+
+html[data-theme="dark"] .aurora-a {
+  background: radial-gradient(circle at center, color-mix(in oklab, var(--accent) 46%, transparent), transparent 68%);
+}
+html[data-theme="dark"] .aurora-b {
+  background: radial-gradient(circle at center, color-mix(in oklab, var(--accent-2) 30%, transparent), transparent 68%);
+}
+html[data-theme="dark"] .aurora-c {
+  background: radial-gradient(circle at center, color-mix(in oklab, #22d3ee 30%, transparent), transparent 68%);
+}
+html[data-theme="dark"] .aurora-d {
+  background: radial-gradient(circle at center, color-mix(in oklab, #a78bfa 32%, transparent), transparent 68%);
+}
+
+/* Keeps body copy off the strongest part of the wash without flattening it. */
+.aurora-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--bg) 44%, transparent),
+    color-mix(in oklab, var(--bg) 20%, transparent) 45%,
+    color-mix(in oklab, var(--bg) 44%, transparent)
+  );
+}
+
 @keyframes laptop-hint-bounce {
   0%,
   100% {

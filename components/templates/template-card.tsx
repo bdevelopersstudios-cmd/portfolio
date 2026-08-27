@@ -41,8 +41,26 @@ export function TemplateCard({ template, index }: { template: Template; index: n
             <p className="text-sm text-ink-dim">{template.tagline}</p>
             <p className="mt-4 text-sm leading-relaxed text-ink-dim">{template.description}</p>
 
+            {/* The screen list is the clearest answer to "what am I buying" —
+                more so than a feature list, since every one is clickable. */}
+            <div className="mt-5 border-t border-line-soft pt-5">
+              <p className="font-mono text-[10px] uppercase tracking-wider text-ink-faint">
+                {template.pages.length} screens
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {template.pages.map((p) => (
+                  <span
+                    key={p}
+                    className="rounded-full border border-line px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-ink-dim"
+                  >
+                    {p}
+                  </span>
+                ))}
+              </div>
+            </div>
+
             <ul className="mt-5 space-y-2 border-t border-line-soft pt-5">
-              {template.includes.slice(0, 4).map((item) => (
+              {template.includes.slice(0, 3).map((item) => (
                 <li key={item} className="flex items-start gap-2.5 text-[13px] text-ink-dim">
                   <span
                     aria-hidden="true"
@@ -53,17 +71,6 @@ export function TemplateCard({ template, index }: { template: Template; index: n
                 </li>
               ))}
             </ul>
-
-            <div className="mt-5 flex flex-wrap gap-2">
-              {template.tech.map((t) => (
-                <span
-                  key={t}
-                  className="rounded-full border border-line px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-ink-dim"
-                >
-                  {t}
-                </span>
-              ))}
-            </div>
 
             <div className="mt-auto flex items-center justify-between gap-3 border-t border-line-soft pt-5">
               <span className="font-display text-xl">

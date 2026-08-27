@@ -10,13 +10,15 @@ export type Template = {
   tech: string[];
   /** What a buyer actually receives — the case for the price. */
   includes: string[];
+  /** Routes in the template, listed on the store card. */
+  pages: string[];
   /** Distinct swatch per template, used on the store card. */
   swatch: [string, string];
   previewPath: string;
 };
 
 export const categoryLabels: Record<TemplateCategory, string> = {
-  saas: "SaaS Landing",
+  saas: "SaaS Product",
   dashboard: "App Dashboard",
   studio: "Studio Site",
 };
@@ -26,9 +28,9 @@ export const templates: Template[] = [
     slug: "nimbus",
     name: "Nimbus",
     category: "saas",
-    tagline: "A bento-grid SaaS launch page with live pricing logic.",
+    tagline: "A seven-screen SaaS product, marketing through to the signed-in app.",
     description:
-      "A complete marketing front end for a subscription product: a glass navigation bar, an oversized type hero, a bento feature grid that reflows down to one column, animated metrics, and a pricing table whose monthly/annual toggle recalculates in place. Built to be reskinned by editing one token file.",
+      "Not a landing page — the whole front end. Marketing site, a product page, a pricing page with a working comparison matrix and FAQ, a changelog, a docs section with a code browser, a validating auth screen with sign-in and sign-up, and the in-app dashboard a customer lands on afterwards. Shared nav and footer live in a route layout, so navigation is instant and state survives it.",
     price: 1000,
     tech: ["Next.js 16", "React 19", "Tailwind v4", "Motion"],
     includes: [
@@ -39,6 +41,7 @@ export const templates: Template[] = [
       "Light and dark themes driven by one token set",
       "Restrained glassmorphism — nav and cards only, for the frame cost",
     ],
+    pages: ["Landing","Product","Pricing","Changelog","Docs","Sign in / Sign up","In-app dashboard"],
     swatch: ["#6366f1", "#f59e0b"],
     previewPath: "/templates/preview/nimbus",
   },
@@ -46,9 +49,9 @@ export const templates: Template[] = [
     slug: "console",
     name: "Console",
     category: "dashboard",
-    tagline: "An analytics dashboard with sortable data and a live chart.",
+    tagline: "A five-screen analytics dashboard with real table, chart and form logic.",
     description:
-      "The screen every internal tool needs first. A collapsible sidebar, a command-style search bar, a bento row of metric cards, a hand-built SVG area chart with a hover readout, and a data table you can genuinely sort and filter. No chart library — the SVG is yours to edit.",
+      "A complete internal tool. Overview with a sortable endpoint table, a traffic page with region filters and dual charts, billing with a seat calculator and invoice history, team management where you can genuinely invite, re-role and remove people, and tabbed settings with toggles and revealable API keys. The sidebar, search and theme sit in a route layout so they persist as you move between screens.",
     price: 1000,
     tech: ["Next.js 16", "React 19", "Tailwind v4", "Zero chart deps"],
     includes: [
@@ -59,6 +62,7 @@ export const templates: Template[] = [
       "Dark and light, switchable at runtime",
       "No charting dependency to fight or version-bump",
     ],
+    pages: ["Overview","Traffic","Billing","Team","Settings"],
     swatch: ["#10b981", "#0ea5e9"],
     previewPath: "/templates/preview/console",
   },
@@ -66,9 +70,9 @@ export const templates: Template[] = [
     slug: "atelier",
     name: "Atelier",
     category: "studio",
-    tagline: "An editorial studio site with kinetic type and a filtered index.",
+    tagline: "An eleven-route studio site with dynamic case studies and a validating form.",
     description:
-      "For design studios and freelancers who need presence over pitch. Oversized kinetic headline, an infinite marquee, a filterable project index with hover reveals, and a warm earth-toned palette drawn from the direction 2026 actually took rather than the one the trend pieces predicted.",
+      "A full editorial site. Kinetic home page, a filterable work index, six individually routed case studies generated from one data file, a studio page with process and team, a journal index, and a contact form with per-field validation and a success state. The case studies are a dynamic route pre-rendered at build time, so they stay static while remaining data-driven.",
     price: 1000,
     tech: ["Next.js 16", "React 19", "Tailwind v4", "Motion"],
     includes: [
@@ -79,6 +83,7 @@ export const templates: Template[] = [
       "Warm earth palette, plus a mono-neutral alternate",
       "Every section keyboard reachable and reduced-motion aware",
     ],
+    pages: ["Home","Work index","Case study (×6)","Studio","Journal","Contact"],
     swatch: ["#c2410c", "#0f766e"],
     previewPath: "/templates/preview/atelier",
   },

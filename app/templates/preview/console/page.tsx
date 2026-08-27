@@ -1,17 +1,8 @@
 import type { Metadata } from "next";
-import { Console } from "@/components/templates/console";
-import { PreviewBar } from "@/components/templates/preview-bar";
+import { Overview } from "@/components/templates/console/screens";
 
-export const metadata: Metadata = {
-  title: "Console — dashboard template",
-  description: "Live preview of Console, an analytics dashboard with a sortable table and an SVG chart.",
-};
+export const metadata: Metadata = { title: "Console — Overview" };
 
-export default function ConsolePreview() {
-  return (
-    <>
-      <Console />
-      <PreviewBar name="Console" price={1000} />
-    </>
-  );
+export default function Page() {
+  return <Overview />;
 }

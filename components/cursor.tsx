@@ -6,6 +6,7 @@ export function Cursor() {
   const dotRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(false);
+  const [overText, setOverText] = useState(false);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -24,6 +25,9 @@ export function Cursor() {
       }
       const el = document.elementFromPoint(e.clientX, e.clientY);
       setActive(!!el?.closest("a, button, [data-cursor-hover]"));
+      // Over a text field the native I-beam is genuinely more useful than a
+      // dot — you need to see where the caret will land.
+      setOverText(!!el?.closest("input[type=text], input:not([type]), input[type=email], input[type=search], textarea"));
     };
 
     const tick = () => {
@@ -46,8 +50,8 @@ export function Cursor() {
 
   return (
     <div
-      className="pointer-events-none fixed inset-0 z-50 hidden md:block"
-      style={{ opacity: visible ? 1 : 0 }}
+      className="pointer-events-none fixed inset-0 z-[80] hidden md:block"
+      style={{ opacity: visible && !overText ? 1 : 0 }}
       aria-hidden="true"
     >
       <div

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { GREETING, NO_MATCH, OPENERS, findAnswer, offTopicReply, type Answer } from "@/lib/assistant";
 import { track } from "@/components/analytics";
+import { LLM_TIMEOUT_MS, askLlm, llmEnabled } from "@/lib/assistant-llm";
 
 type Message = {
   id: number;
@@ -72,30 +73,52 @@ export function Assistant() {
   }, [open]);
 
   const send = useCallback(
-    (raw: string) => {
+    async (raw: string) => {
       const question = raw.trim();
       if (!question || thinking) return;
 
+      const history = messages.slice(-6).map((m) => ({ from: m.from, text: m.text }));
       setMessages((prev) => [...prev, { id: nextId.current++, from: "user", text: question }]);
       setInput("");
       setThinking(true);
 
-      const match = findAnswer(question);
-      track("assistant_question", { matched: match ? match.answer.id : "none" });
+      // The built-in answer is resolved first and always: it is exact on the
+      // questions that matter most (rates, availability, what is for sale) and
+      // it is the fallback if the model is unreachable.
+      const local = findAnswer(question);
 
-      // A short beat before replying. Instant answers read as a lookup table;
-      // this reads as an answer, and covers the layout shift of the new row.
-      const delay = reduced ? 120 : 420 + Math.random() * 260;
+      let reply: string | null = null;
+      let source: "llm" | "local" | "none" = "none";
+
+      if (llmEnabled()) {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
+        reply = await askLlm(question, history, controller.signal);
+        window.clearTimeout(timer);
+        if (reply) source = "llm";
+      }
+
+      if (!reply && local) {
+        reply = local.answer.reply;
+        source = "local";
+      }
+
+      track("assistant_question", { source, matched: local ? local.answer.id : "none" });
+
+      // A short beat before replying. An instant answer reads as a lookup
+      // table; this reads as an answer. Skipped when the model already took
+      // real time to respond.
+      const pause = source === "llm" || reduced ? 0 : 380 + Math.random() * 240;
       window.setTimeout(() => {
         setMessages((prev) => [
           ...prev,
-          match
+          reply
             ? {
                 id: nextId.current++,
                 from: "bot",
-                text: match.answer.reply,
-                links: match.answer.links,
-                followUps: match.answer.followUps,
+                text: reply,
+                links: local?.answer.links,
+                followUps: local?.answer.followUps,
               }
             : {
                 id: nextId.current++,
@@ -104,12 +127,11 @@ export function Assistant() {
                 followUps: OPENERS.slice(0, 3),
               },
         ]);
-        if (!match) setMisses((m) => m + 1);
-        else setMisses(0);
+        setMisses((m) => (reply ? 0 : m + 1));
         setThinking(false);
-      }, delay);
+      }, pause);
     },
-    [misses, reduced, thinking]
+    [messages, misses, reduced, thinking]
   );
 
   return (

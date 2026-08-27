@@ -319,3 +319,19 @@ html.cursor-hidden a,
 html.cursor-hidden button {
   cursor: none;
 }
+
+/* Text fields keep the real I-beam. The custom dot hides itself over them
+   (see cursor.tsx) rather than the two being shown at once — when you are
+   about to type, you need to see where the caret will land. */
+html.cursor-hidden input,
+html.cursor-hidden textarea,
+html.cursor-hidden select {
+  cursor: auto;
+}
+
+/* And the caret itself takes the accent, so it is visible against both
+   themes rather than defaulting to something close to the panel colour. */
+input,
+textarea {
+  caret-color: var(--accent);
+}

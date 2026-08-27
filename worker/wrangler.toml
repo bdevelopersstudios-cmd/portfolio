@@ -1,0 +1,7 @@
+name = "usman-assistant"
+main = "chat-worker.js"
+compatibility_date = "2026-08-01"
+
+# The API key is NOT here. Set it as an encrypted secret so it never touches
+# the repo:
+#   wrangler secret put GEMINI_API_KEY

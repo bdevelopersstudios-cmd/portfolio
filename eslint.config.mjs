@@ -15,6 +15,9 @@ const eslintConfig = defineConfig([
     // Vendored, minified, and copied in on every build by
     // scripts/copy-pdf-worker.mjs — not ours to lint.
     "public/pdf.worker.min.mjs",
+    // Cloudflare Worker — a different runtime with its own conventions, and
+    // not part of the Next build.
+    "worker/**",
   ]),
 ]);
 

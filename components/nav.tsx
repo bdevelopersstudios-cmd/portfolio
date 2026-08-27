@@ -115,7 +115,11 @@ export function Nav() {
           <Link
             href="/templates"
             data-cursor-hover
-            className={`transition-colors hover:text-accent ${!isHome ? "text-accent" : ""}`}
+            // Matched on its own path, not on "anywhere but home" — that older
+            // test lit Templates up on /tools as well.
+            className={`transition-colors hover:text-accent ${
+              pathname?.startsWith("/templates") ? "text-accent" : ""
+            }`}
           >
             Templates
           </Link>

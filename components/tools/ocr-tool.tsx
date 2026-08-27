@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Dropzone, ErrorNote, Progress, ToolButton } from "./dropzone";
+import { Dropzone, ErrorNote, ToolButton } from "./dropzone";
+import { StatusArea } from "./ui";
 import { downloadBlob, pdfWorkerSrc, swapExtension } from "@/lib/tools";
 
 /**
@@ -147,7 +148,7 @@ export function OcrTool() {
         </ToolButton>
       </div>
 
-      {busy && <Progress value={progress} label={stage || "Working"} />}
+      <StatusArea busy={busy} value={progress} label={stage || "Working"} detail={files[0]?.type === "application/pdf" ? "Multi-page scans take a moment per page" : undefined} done={Boolean(text)} doneLabel="Text recognised." />
       <ErrorNote>{error}</ErrorNote>
 
       {text && (

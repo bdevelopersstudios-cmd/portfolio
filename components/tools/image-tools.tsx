@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Dropzone, ErrorNote, Progress, ToolButton } from "./dropzone";
+import { Dropzone, ErrorNote, ToolButton } from "./dropzone";
+import { StatusArea } from "./ui";
+import { motion } from "motion/react";
 import {
   canEncode,
   convertImage,
@@ -43,8 +45,14 @@ function ResultList({ results }: { results: Result[] }) {
       </p>
 
       <ul className="mt-4 divide-y divide-line-soft rounded-xl border border-line">
-        {results.map((r) => (
-          <li key={r.name} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
+        {results.map((r, i) => (
+          <motion.li
+            key={r.name}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: i * 0.045, ease: [0.22, 1, 0.36, 1] }}
+            className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3"
+          >
             <span className="min-w-0 flex-1 truncate text-sm">{r.name}</span>
             <span className="font-mono text-xs text-ink-faint">{r.dims}</span>
             <span className="font-mono text-xs text-ink-faint">
@@ -57,7 +65,7 @@ function ResultList({ results }: { results: Result[] }) {
             >
               Download
             </button>
-          </li>
+          </motion.li>
         ))}
       </ul>
     </div>
@@ -201,7 +209,7 @@ function ImageEngine({ mode }: { mode: "convert" | "compress" }) {
         </ToolButton>
       </div>
 
-      {busy && <Progress value={progress} label="Processing" />}
+      <StatusArea busy={busy} value={progress} label={`Processing ${files.length} file${files.length === 1 ? "" : "s"}`} done={results.length > 0} doneLabel={`${results.length} file${results.length === 1 ? "" : "s"} ready.`} />
       <ErrorNote>{error}</ErrorNote>
       <ResultList results={results} />
     </>

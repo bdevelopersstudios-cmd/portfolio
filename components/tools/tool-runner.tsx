@@ -17,6 +17,13 @@ const PdfToImages = dynamic(() => import("./pdf-tools").then((m) => m.PdfToImage
 const PdfToText = dynamic(() => import("./pdf-tools").then((m) => m.PdfToText), { ssr: false, loading });
 const MergePdf = dynamic(() => import("./pdf-tools").then((m) => m.MergePdf), { ssr: false, loading });
 const SplitPdf = dynamic(() => import("./pdf-tools").then((m) => m.SplitPdf), { ssr: false, loading });
+const RotatePdf = dynamic(() => import("./pdf-edit-tools").then((m) => m.RotatePdf), { ssr: false, loading });
+const PdfPageNumbers = dynamic(() => import("./pdf-edit-tools").then((m) => m.PdfPageNumbers), { ssr: false, loading });
+const PdfWatermark = dynamic(() => import("./pdf-edit-tools").then((m) => m.PdfWatermark), { ssr: false, loading });
+const PdfRemovePages = dynamic(() => import("./pdf-edit-tools").then((m) => m.PdfRemovePages), { ssr: false, loading });
+const FaviconTool = dynamic(() => import("./extra-tools").then((m) => m.FaviconTool), { ssr: false, loading });
+const PaletteTool = dynamic(() => import("./extra-tools").then((m) => m.PaletteTool), { ssr: false, loading });
+const SvgToPng = dynamic(() => import("./extra-tools").then((m) => m.SvgToPng), { ssr: false, loading });
 const OcrTool = dynamic(() => import("./ocr-tool").then((m) => m.OcrTool), { ssr: false, loading });
 
 export function ToolRunner({ slug }: { slug: ToolSlug }) {
@@ -35,6 +42,20 @@ export function ToolRunner({ slug }: { slug: ToolSlug }) {
       return <MergePdf />;
     case "split-pdf":
       return <SplitPdf />;
+    case "rotate-pdf":
+      return <RotatePdf />;
+    case "pdf-page-numbers":
+      return <PdfPageNumbers />;
+    case "pdf-watermark":
+      return <PdfWatermark />;
+    case "pdf-remove-pages":
+      return <PdfRemovePages />;
+    case "favicon":
+      return <FaviconTool />;
+    case "palette":
+      return <PaletteTool />;
+    case "svg-to-png":
+      return <SvgToPng />;
     case "ocr":
       return <OcrTool />;
   }

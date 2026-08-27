@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ToolGrid } from "@/components/tools/tool-grid";
 import { TOOLS } from "@/lib/tools";
 
 export const metadata: Metadata = {
@@ -8,7 +9,7 @@ export const metadata: Metadata = {
     "Convert images, split and merge PDFs, extract text and run OCR — entirely in your browser. Nothing is uploaded.",
 };
 
-const GROUPS = ["Images", "PDF", "Extract"] as const;
+const GROUPS = ["Images", "PDF", "Design", "Extract"] as const;
 
 export default function ToolsPage() {
   return (
@@ -36,24 +37,7 @@ export default function ToolsPage() {
           {GROUPS.map((group) => (
             <div key={group} className="mb-14 last:mb-0">
               <h2 className="font-mono text-xs uppercase tracking-[0.2em] text-ink-faint">{group}</h2>
-              <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {TOOLS.filter((t) => t.group === group).map((tool) => (
-                  <Link
-                    key={tool.slug}
-                    href={`/tools/${tool.slug}`}
-                    data-cursor-hover
-                    className="group flex flex-col rounded-2xl border border-line bg-bg-raised p-6 transition-colors hover:border-accent"
-                  >
-                    <h3 className="font-display text-xl transition-colors group-hover:text-accent">
-                      {tool.name}
-                    </h3>
-                    <p className="mt-2 flex-1 text-sm leading-relaxed text-ink-dim">{tool.blurb}</p>
-                    <span className="mt-5 font-mono text-[11px] uppercase tracking-[0.15em] text-accent">
-                      Open →
-                    </span>
-                  </Link>
-                ))}
-              </div>
+              <ToolGrid tools={TOOLS.filter((t) => t.group === group)} />
             </div>
           ))}
         </div>

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Dropzone, ErrorNote, Progress, ToolButton } from "./dropzone";
+import { Dropzone, ErrorNote, ToolButton } from "./dropzone";
+import { Stagger, StatusArea, stagStep } from "./ui";
+import { motion } from "motion/react";
 import { downloadBlob, formatBytes, pdfWorkerSrc, swapExtension } from "@/lib/tools";
 
 /**
@@ -26,6 +28,7 @@ export function ImagesToPdf() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [done, setDone] = useState(false);
 
   const move = (from: number, to: number) => {
     if (to < 0 || to >= files.length) return;
@@ -38,6 +41,7 @@ export function ImagesToPdf() {
   const run = async () => {
     setBusy(true);
     setError(null);
+    setDone(false);
     setProgress(0);
     try {
       const { PDFDocument } = await loadPdfLib();
@@ -66,6 +70,7 @@ export function ImagesToPdf() {
 
       const out = await doc.save();
       downloadBlob(new Blob([out as BlobPart], { type: "application/pdf" }), "images.pdf");
+      setDone(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not build that PDF.");
     } finally {
@@ -107,7 +112,7 @@ export function ImagesToPdf() {
           {busy ? "Building…" : `Create PDF (${files.length} page${files.length === 1 ? "" : "s"})`}
         </ToolButton>
       </div>
-      {busy && <Progress value={progress} label="Adding pages" />}
+      <StatusArea busy={busy} value={progress} label="Adding pages" done={done} doneLabel="PDF downloaded." />
       <ErrorNote>{error}</ErrorNote>
     </>
   );
@@ -217,7 +222,7 @@ export function PdfToImages() {
           {busy ? "Rendering…" : "Render pages"}
         </ToolButton>
       </div>
-      {busy && <Progress value={progress} label="Rendering pages" />}
+      <StatusArea busy={busy} value={progress} label="Rendering pages" done={pages.length > 0} doneLabel={`${pages.length} pages rendered.`} />
       <ErrorNote>{error}</ErrorNote>
 
       {pages.length > 0 && (
@@ -228,10 +233,11 @@ export function PdfToImages() {
               Download all
             </ToolButton>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Stagger className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
             {pages.map((p) => (
-              <button
+              <motion.button
                 key={p.name}
+                variants={stagStep}
                 type="button"
                 onClick={() => downloadBlob(p.blob, p.name)}
                 className="group text-left"
@@ -243,9 +249,9 @@ export function PdfToImages() {
                   className="w-full rounded-lg border border-line transition-opacity group-hover:opacity-80"
                 />
                 <span className="mt-1.5 block truncate font-mono text-[11px] text-ink-faint">{p.name}</span>
-              </button>
+              </motion.button>
             ))}
-          </div>
+          </Stagger>
         </div>
       )}
     </>
@@ -310,7 +316,7 @@ export function PdfToText() {
           {busy ? "Reading…" : "Extract text"}
         </ToolButton>
       </div>
-      {busy && <Progress value={progress} label="Reading pages" />}
+      <StatusArea busy={busy} value={progress} label="Reading pages" done={Boolean(text)} doneLabel="Text extracted." />
       <ErrorNote>{error}</ErrorNote>
 
       {empty && (

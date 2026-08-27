@@ -14,6 +14,13 @@ export type ToolSlug =
   | "pdf-to-text"
   | "merge-pdf"
   | "split-pdf"
+  | "rotate-pdf"
+  | "pdf-page-numbers"
+  | "pdf-watermark"
+  | "pdf-remove-pages"
+  | "favicon"
+  | "palette"
+  | "svg-to-png"
   | "ocr";
 
 export type Tool = {
@@ -22,7 +29,7 @@ export type Tool = {
   blurb: string;
   /** Accept attribute for the picker. */
   accept: string;
-  group: "Images" | "PDF" | "Extract";
+  group: "Images" | "PDF" | "Design" | "Extract";
   /** Stated plainly on the tool page where there is a real limit. */
   caveat?: string;
 };
@@ -69,6 +76,57 @@ export const TOOLS: Tool[] = [
     blurb: "Pull out a page range, or break a document into single-page files.",
     accept: "application/pdf",
     group: "PDF",
+  },
+  {
+    slug: "rotate-pdf",
+    name: "Rotate PDF",
+    blurb: "Turn every page, or just the ones you name, in 90-degree steps.",
+    accept: "application/pdf",
+    group: "PDF",
+  },
+  {
+    slug: "pdf-remove-pages",
+    name: "Remove PDF pages",
+    blurb: "Delete the pages you do not want and keep the rest in order.",
+    accept: "application/pdf",
+    group: "PDF",
+  },
+  {
+    slug: "pdf-page-numbers",
+    name: "Add page numbers",
+    blurb: "Stamp numbers onto a PDF, positioned and sized how you like.",
+    accept: "application/pdf",
+    group: "PDF",
+  },
+  {
+    slug: "pdf-watermark",
+    name: "Watermark PDF",
+    blurb: "Lay DRAFT, CONFIDENTIAL or your own text across every page.",
+    accept: "application/pdf",
+    group: "PDF",
+  },
+  {
+    slug: "favicon",
+    name: "Favicon generator",
+    blurb: "One image in, a full icon set out — including a real multi-size favicon.ico.",
+    accept: "image/*",
+    group: "Design",
+  },
+  {
+    slug: "palette",
+    name: "Colour palette",
+    blurb: "Pull the dominant colours out of any image and copy them as hex.",
+    accept: "image/*",
+    group: "Design",
+  },
+  {
+    slug: "svg-to-png",
+    name: "SVG to PNG",
+    blurb: "Rasterise an SVG at any width, on transparent or white.",
+    accept: "image/svg+xml",
+    group: "Design",
+    caveat:
+      "The SVG is rendered by the browser, so anything it pulls from another domain — a remote font or image — will not appear.",
   },
   {
     slug: "pdf-to-text",
@@ -152,6 +210,8 @@ export type ConvertOptions = {
   quality: number;
   /** Longest edge in pixels; 0 leaves the image at its original size. */
   maxEdge: number;
+  /** Centre-crop to this exact square, for icon generation. */
+  square?: number;
 };
 
 export async function convertImage(file: File, opts: ConvertOptions) {
@@ -167,6 +227,14 @@ export async function convertImage(file: File, opts: ConvertOptions) {
     h = Math.round(sh * scale);
   }
 
+  // Icons must be exactly square, so the source is centre-cropped to its
+  // shortest edge first rather than squashed to fit.
+  const square = opts.square ?? 0;
+  if (square > 0) {
+    w = square;
+    h = square;
+  }
+
   const canvas = document.createElement("canvas");
   canvas.width = w;
   canvas.height = h;
@@ -180,7 +248,13 @@ export async function convertImage(file: File, opts: ConvertOptions) {
     ctx.fillRect(0, 0, w, h);
   }
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(source as CanvasImageSource, 0, 0, w, h);
+
+  if (square > 0) {
+    const edge = Math.min(sw, sh);
+    ctx.drawImage(source as CanvasImageSource, (sw - edge) / 2, (sh - edge) / 2, edge, edge, 0, 0, w, h);
+  } else {
+    ctx.drawImage(source as CanvasImageSource, 0, 0, w, h);
+  }
   if ("close" in source) source.close();
 
   const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, opts.type, opts.quality));
@@ -203,4 +277,121 @@ export function downloadBlob(blob: Blob, filename: string) {
 export function pdfWorkerSrc() {
   const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
   return `${base}/pdf.worker.min.mjs`;
+}
+
+/** Parses "1-3, 7, 10-12" into zero-based indices, bounded by the page count. */
+export function parsePageRange(input: string, total: number) {
+  const out = new Set<number>();
+  for (const part of input.split(",")) {
+    const chunk = part.trim();
+    if (!chunk) continue;
+    const m = chunk.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (m) {
+      const a = Number(m[1]);
+      const b = Number(m[2]);
+      for (let i = Math.min(a, b); i <= Math.max(a, b); i++) {
+        if (i >= 1 && i <= total) out.add(i - 1);
+      }
+    } else if (/^\d+$/.test(chunk)) {
+      const i = Number(chunk);
+      if (i >= 1 && i <= total) out.add(i - 1);
+    } else {
+      throw new Error(`"${chunk}" is not a page or a range.`);
+    }
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
+/**
+ * Packs PNGs into a real multi-resolution .ico.
+ *
+ * The format is a 6-byte header, one 16-byte directory entry per image, then
+ * the payloads. Modern browsers accept PNG inside ICO, so the images go in
+ * untouched — no BMP conversion needed. A dimension of 0 means 256.
+ */
+export async function buildIco(pngs: Blob[]) {
+  const buffers = await Promise.all(pngs.map((b) => b.arrayBuffer()));
+  const header = 6;
+  const dir = 16 * buffers.length;
+  const total = header + dir + buffers.reduce((n, b) => n + b.byteLength, 0);
+  const out = new ArrayBuffer(total);
+  const view = new DataView(out);
+  const bytes = new Uint8Array(out);
+
+  view.setUint16(0, 0, true); // reserved
+  view.setUint16(2, 1, true); // 1 = icon
+  view.setUint16(4, buffers.length, true);
+
+  let offset = header + dir;
+  buffers.forEach((buf, i) => {
+    const entry = header + i * 16;
+    // PNG stores its dimensions big-endian at byte 16.
+    const png = new DataView(buf);
+    const w = png.getUint32(16);
+    const h = png.getUint32(20);
+    bytes[entry] = w >= 256 ? 0 : w;
+    bytes[entry + 1] = h >= 256 ? 0 : h;
+    bytes[entry + 2] = 0; // palette size
+    bytes[entry + 3] = 0; // reserved
+    view.setUint16(entry + 4, 1, true); // colour planes
+    view.setUint16(entry + 6, 32, true); // bits per pixel
+    view.setUint32(entry + 8, buf.byteLength, true);
+    view.setUint32(entry + 12, offset, true);
+    bytes.set(new Uint8Array(buf), offset);
+    offset += buf.byteLength;
+  });
+
+  return new Blob([out], { type: "image/x-icon" });
+}
+
+/**
+ * Dominant colours, by bucketing pixels into a coarse RGB grid and counting.
+ *
+ * A full k-means would be more accurate and far slower; for pulling a usable
+ * palette off a photograph the difference is not visible. The image is sampled
+ * at reduced size for the same reason.
+ */
+export async function extractPalette(file: File, want = 8) {
+  const source = await decode(file);
+  const scale = Math.min(1, 160 / Math.max(source.width, source.height));
+  const w = Math.max(1, Math.round(source.width * scale));
+  const h = Math.max(1, Math.round(source.height * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("Canvas is unavailable in this browser.");
+  ctx.drawImage(source as CanvasImageSource, 0, 0, w, h);
+  if ("close" in source) source.close();
+
+  const { data } = ctx.getImageData(0, 0, w, h);
+  const buckets = new Map<string, { r: number; g: number; b: number; n: number }>();
+  const STEP = 24; // bucket width per channel
+
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 128) continue; // skip transparent pixels
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const key = `${Math.round(r / STEP)}-${Math.round(g / STEP)}-${Math.round(b / STEP)}`;
+    const hit = buckets.get(key);
+    if (hit) {
+      hit.r += r;
+      hit.g += g;
+      hit.b += b;
+      hit.n += 1;
+    } else {
+      buckets.set(key, { r, g, b, n: 1 });
+    }
+  }
+
+  const counted = [...buckets.values()].sort((a, b) => b.n - a.n).slice(0, want);
+  const totalPixels = counted.reduce((n, c) => n + c.n, 0) || 1;
+  const hex = (v: number) => Math.round(v).toString(16).padStart(2, "0");
+
+  return counted.map((c) => ({
+    hex: `#${hex(c.r / c.n)}${hex(c.g / c.n)}${hex(c.b / c.n)}`,
+    share: c.n / totalPixels,
+  }));
 }

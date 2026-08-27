@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Environment, Html, Lightformer, OrbitControls, RoundedBox } from "@react-three/drei";
+import { useReducedMotion } from "motion/react";
 import * as THREE from "three";
 import type { ThemeMode } from "@/lib/theme";
 
@@ -182,11 +183,19 @@ const CODE_LINES: { indent: number; tokens: Token[] }[] = [
   { indent: 0, tokens: [{ text: "}", type: "text" }] },
 ];
 
+/** Total characters across every line — the end point of the typing pass. */
+const CODE_CHARS = CODE_LINES.reduce(
+  (n, line) => n + line.tokens.reduce((m, t) => m + t.text.length, 0),
+  0
+);
+
 function drawEditorTexture(
   canvas: HTMLCanvasElement,
   palette: EditorPalette,
   accent: string,
-  cursorOn: boolean
+  cursorOn: boolean,
+  /** How many characters to reveal; the rest of the file stays untyped. */
+  revealed: number
 ) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -223,36 +232,71 @@ function drawEditorTexture(
   const padTop = barH + lineHeight * 0.55;
   const lineNumW = w * 0.045;
 
-  let lastX = padX + lineNumW;
-  let lastY = padTop;
+  // Draw only as far as `revealed`, stopping mid-token if that is where the
+  // budget runs out, and leave the caret wherever the typing got to.
+  let budget = revealed;
+  let caretX = padX + lineNumW;
+  let caretY = padTop;
 
-  CODE_LINES.forEach((line, i) => {
+  for (let i = 0; i < CODE_LINES.length; i++) {
+    const line = CODE_LINES[i];
     const y = padTop + i * lineHeight;
+
+    // A line's number appears only once that line has started typing.
+    if (budget <= 0 && i > 0) break;
+
     ctx.fillStyle = palette.lineNumber;
     ctx.textAlign = "right";
     ctx.fillText(String(i + 1), padX + lineNumW - fontSize * 0.45, y);
     ctx.textAlign = "left";
 
     let x = padX + lineNumW + line.indent * fontSize * 1.5;
-    line.tokens.forEach((tok) => {
+    for (const tok of line.tokens) {
+      if (budget <= 0) break;
+      const text = budget >= tok.text.length ? tok.text : tok.text.slice(0, budget);
+      budget -= text.length;
       ctx.fillStyle = palette[tok.type];
-      ctx.fillText(tok.text, x, y);
-      x += ctx.measureText(tok.text).width;
-    });
-    lastX = x;
-    lastY = y;
-  });
+      ctx.fillText(text, x, y);
+      x += ctx.measureText(text).width;
+    }
+
+    caretX = x;
+    caretY = y;
+    if (budget <= 0) break;
+  }
 
   if (cursorOn) {
     ctx.fillStyle = accent;
-    ctx.fillRect(lastX + fontSize * 0.14, lastY, fontSize * 0.48, fontSize * 1.15);
+    ctx.fillRect(caretX + fontSize * 0.14, caretY, fontSize * 0.48, fontSize * 1.15);
   }
 }
 
 const DISPLAY_W = LID_W - 0.15;
 const DISPLAY_H = LID_H - 0.2;
 
-function ScreenDisplay({ theme, accent }: { theme: ThemeMode; accent: string }) {
+/**
+ * Typing cadence. Every repaint re-rasterises the whole editor canvas and
+ * re-uploads it as a texture, so this reveals a few characters per tick
+ * rather than one per tick — same apparent speed, a third of the uploads.
+ */
+const TYPE_STEP = 50;
+const CHARS_PER_STEP = 3;
+const BLINK_MS = 530;
+/** Wide enough for the panel at its largest on screen, no wider — the upload
+ *  cost of this texture scales with its area. */
+const SCREEN_TEX_W = 800;
+
+function ScreenDisplay({
+  theme,
+  accent,
+  active,
+  reduced,
+}: {
+  theme: ThemeMode;
+  accent: string;
+  active: boolean;
+  reduced: boolean;
+}) {
   // The canvas/texture are a pure imperative side-channel: created inside an
   // effect (never read during render) and repainted in place via
   // `needsUpdate`. The material is reached through a JSX ref rather than a
@@ -260,36 +304,68 @@ function ScreenDisplay({ theme, accent }: { theme: ThemeMode; accent: string }) 
   const materialRef = useRef<THREE.MeshBasicMaterial | null>(null);
   const paintRef = useRef<{ canvas: HTMLCanvasElement; texture: THREE.CanvasTexture } | null>(null);
   const cursorOn = useRef(true);
+  const revealed = useRef(0);
 
   const redraw = useCallback(() => {
     const paint = paintRef.current;
     if (!paint) return;
-    drawEditorTexture(paint.canvas, theme === "dark" ? DARK_EDITOR : LIGHT_EDITOR, accent, cursorOn.current);
+    drawEditorTexture(
+      paint.canvas,
+      theme === "dark" ? DARK_EDITOR : LIGHT_EDITOR,
+      accent,
+      cursorOn.current,
+      revealed.current
+    );
     paint.texture.needsUpdate = true;
   }, [theme, accent]);
 
+  // Create the offscreen canvas once and hand it to the material.
   useEffect(() => {
-    if (!paintRef.current) {
-      const canvas = document.createElement("canvas");
-      canvas.width = 1024;
-      canvas.height = Math.round((1024 * DISPLAY_H) / DISPLAY_W);
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = 4;
-      paintRef.current = { canvas, texture };
-      if (materialRef.current) {
-        materialRef.current.map = texture;
-        materialRef.current.needsUpdate = true;
-      }
+    if (paintRef.current) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = SCREEN_TEX_W;
+    canvas.height = Math.round((SCREEN_TEX_W * DISPLAY_H) / DISPLAY_W);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 4;
+    paintRef.current = { canvas, texture };
+    if (materialRef.current) {
+      materialRef.current.map = texture;
+      materialRef.current.needsUpdate = true;
     }
-    redraw();
-    // Cheap: repaints a small offscreen canvas twice a second, not per-frame.
-    const id = setInterval(() => {
-      cursorOn.current = !cursorOn.current;
+  }, []);
+
+  useEffect(() => {
+    // Reduced motion gets the finished file and a steady caret — no typing,
+    // no blinking, which is the most restless thing on the page otherwise.
+    if (reduced) {
+      revealed.current = CODE_CHARS;
+      cursorOn.current = true;
       redraw();
-    }, 530);
+      return;
+    }
+
+    redraw();
+    // Nothing to drive while the hero is off screen: the canvas is not
+    // rendering, so repainting this texture would be thrown away.
+    if (!active) return;
+
+    let elapsed = 0;
+    let lastBlink = 0;
+    const id = setInterval(() => {
+      elapsed += TYPE_STEP;
+      if (revealed.current < CODE_CHARS) {
+        revealed.current = Math.min(revealed.current + CHARS_PER_STEP, CODE_CHARS);
+        cursorOn.current = true;
+        redraw();
+      } else if (elapsed - lastBlink >= BLINK_MS) {
+        lastBlink = elapsed;
+        cursorOn.current = !cursorOn.current;
+        redraw();
+      }
+    }, TYPE_STEP);
     return () => clearInterval(id);
-  }, [redraw]);
+  }, [redraw, active, reduced]);
 
   useEffect(() => {
     return () => paintRef.current?.texture.dispose();
@@ -387,20 +463,23 @@ function Laptop({
   accent,
   onToggleTheme,
   showHint,
+  active,
+  reduced,
 }: {
   theme: ThemeMode;
   accent: string;
   onToggleTheme: () => void;
   showHint: boolean;
+  active: boolean;
+  reduced: boolean;
 }) {
   const c = CHASSIS[theme];
   const group = useRef<THREE.Group>(null);
   const wasTap = useWasTap();
 
   useFrame(({ clock }) => {
-    if (group.current) {
-      group.current.position.y = Math.sin(clock.elapsedTime * 0.4) * 0.045;
-    }
+    if (!group.current) return;
+    group.current.position.y = reduced ? 0 : Math.sin(clock.elapsedTime * 0.4) * 0.045;
   });
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
@@ -468,7 +547,7 @@ function Laptop({
           <planeGeometry args={[DISPLAY_W + 0.04, DISPLAY_H + 0.04]} />
           <meshBasicMaterial color={c.bezel} toneMapped={false} />
         </mesh>
-        <ScreenDisplay theme={theme} accent={accent} />
+        <ScreenDisplay theme={theme} accent={accent} active={active} reduced={reduced} />
         {/* Spill from the panel onto the keyboard below it */}
         <pointLight
           position={[0, LID_H / 2, 0.5]}
@@ -490,24 +569,36 @@ function Laptop({
   );
 }
 
-function Spark({ accent, onCycleAccent }: { accent: string; onCycleAccent: () => void }) {
+function Spark({
+  accent,
+  onCycleAccent,
+  reduced,
+}: {
+  accent: string;
+  onCycleAccent: () => void;
+  reduced: boolean;
+}) {
   const ref = useRef<THREE.Group>(null);
   const matRef = useRef<THREE.MeshBasicMaterial>(null);
+  const haloRef = useRef<THREE.MeshBasicMaterial>(null);
   const wasTap = useWasTap();
+  const [hovered, setHovered] = useState(false);
 
   useFrame(({ clock }) => {
-    if (ref.current) {
+    if (ref.current && !reduced) {
       const t = clock.elapsedTime * 0.5;
       ref.current.position.set(Math.cos(t) * 2.5, 1.15 + Math.sin(t * 1.4) * 0.35, Math.sin(t) * 2.5);
     }
-    if (matRef.current) {
-      matRef.current.opacity = 0.65 + Math.sin(clock.elapsedTime * 3) * 0.35;
-    }
+    const pulse = reduced ? 1 : 0.65 + Math.sin(clock.elapsedTime * 3) * 0.35;
+    if (matRef.current) matRef.current.opacity = pulse;
+    if (haloRef.current) haloRef.current.opacity = pulse * 0.16;
   });
 
   return (
-    <group ref={ref}>
-      {/* Oversized invisible hit target — the visible orb is far too small to click. */}
+    // Parked at a fixed point under reduced motion rather than orbiting.
+    <group ref={ref} position={reduced ? [2.5, 1.15, 0] : undefined}>
+      {/* Oversized invisible hit target — even enlarged, the orb is a small
+          thing to ask someone to hit precisely. */}
       <mesh
         onClick={(e) => {
           e.stopPropagation();
@@ -517,17 +608,35 @@ function Spark({ accent, onCycleAccent }: { accent: string; onCycleAccent: () =>
         onPointerOver={(e) => {
           e.stopPropagation();
           setHoverCursor(true);
+          setHovered(true);
         }}
-        onPointerOut={() => setHoverCursor(false)}
+        onPointerOut={() => {
+          setHoverCursor(false);
+          setHovered(false);
+        }}
       >
-        <sphereGeometry args={[0.3, 8, 8]} />
+        <sphereGeometry args={[0.34, 8, 8]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
+
+      {/* Soft halo so it reads as a light source rather than a stray dot. */}
       <mesh>
-        <sphereGeometry args={[0.055, 14, 14]} />
+        <sphereGeometry args={[0.2, 16, 16]} />
+        <meshBasicMaterial ref={haloRef} color={accent} transparent depthWrite={false} toneMapped={false} />
+      </mesh>
+      <mesh>
+        <sphereGeometry args={[0.09, 16, 16]} />
         <meshBasicMaterial ref={matRef} color={accent} transparent toneMapped={false} />
       </mesh>
       <pointLight color={accent} intensity={1.2} distance={2.5} decay={2} />
+
+      {hovered && (
+        <Html position={[0, 0.3, 0]} center transform={false} zIndexRange={[10, 0]}>
+          <div className="pointer-events-none whitespace-nowrap rounded-full border border-white/25 bg-[#11151d]/95 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-white shadow-lg">
+            Change accent
+          </div>
+        </Html>
+      )}
     </group>
   );
 }
@@ -638,7 +747,17 @@ const _s = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 const _col = new THREE.Color();
 
-function VoxelField({ theme, accent, y }: { theme: ThemeMode; accent: string; y: number }) {
+function VoxelField({
+  theme,
+  accent,
+  y,
+  reduced,
+}: {
+  theme: ThemeMode;
+  accent: string;
+  y: number;
+  reduced: boolean;
+}) {
   const ref = useRef<THREE.InstancedMesh>(null);
   const boxes = useMemo(() => buildField(), []);
 
@@ -667,7 +786,9 @@ function VoxelField({ theme, accent, y }: { theme: ThemeMode; accent: string; y:
     const t = clock.elapsedTime;
     for (let i = 0; i < boxes.length; i++) {
       const b = boxes[i];
-      let lift = Math.sin(t * 0.7 + b.phase) * 0.045;
+      // The idle drift is ambient motion nobody asked for; the cursor lift
+      // below is a direct response to input, so it stays either way.
+      let lift = reduced ? 0 : Math.sin(t * 0.7 + b.phase) * 0.045;
       let mix = 0;
 
       if (hit) {
@@ -716,12 +837,16 @@ function Scene({
   showHint,
   onToggleTheme,
   onCycleAccent,
+  active,
+  reduced,
 }: {
   theme: ThemeMode;
   accent: string;
   showHint: boolean;
   onToggleTheme: () => void;
   onCycleAccent: () => void;
+  active: boolean;
+  reduced: boolean;
 }) {
   const rig = useRef<THREE.Group>(null);
   const { size } = useThree();
@@ -739,11 +864,23 @@ function Scene({
 
   // A bounded sway rather than a full spin — the lid has a real front and
   // back now, so a continuous rotation would swing its blank side into view.
+  // Scrolling sinks and tilts the machine so the hero hands off to the page
+  // below instead of sitting frozen while everything moves past it.
   useFrame(({ pointer, clock }) => {
-    if (rig.current) {
-      const target = -0.34 + Math.sin(clock.elapsedTime * 0.16) * 0.16 + pointer.x * 0.16;
-      rig.current.rotation.y = THREE.MathUtils.lerp(rig.current.rotation.y, target, 0.045);
-    }
+    const g = rig.current;
+    if (!g) return;
+
+    const drift = reduced ? 0 : Math.sin(clock.elapsedTime * 0.16) * 0.16;
+    const follow = reduced ? 0 : pointer.x * 0.16;
+    const targetY = -0.34 + drift + follow;
+    // Assigned outright under reduced motion: an easing lerp only ever
+    // approaches its target, so it would keep nudging the rotation by
+    // fractions forever and the scene would never actually come to rest.
+    g.rotation.y = reduced ? targetY : THREE.MathUtils.lerp(g.rotation.y, targetY, 0.045);
+
+    const scrolled = THREE.MathUtils.clamp(window.scrollY / Math.max(window.innerHeight, 1), 0, 1);
+    g.position.y = rigPosition[1] - scrolled * 1.6;
+    g.rotation.x = scrolled * 0.22;
   });
 
   return (
@@ -761,22 +898,40 @@ function Scene({
         <Lightformer intensity={0.9} position={[5, 2, 1]} scale={[6, 8, 1]} color={accent} />
       </Environment>
 
-      <VoxelField theme={theme} accent={accent} y={fieldY} />
+      <VoxelField theme={theme} accent={accent} y={fieldY} reduced={reduced} />
 
       <group ref={rig} position={rigPosition} scale={rigScale}>
-        {/* On phones the copy's own "it's interactive" line sits right where
-            this badge would land, so only one of the two is shown. */}
+        {/* The badge is the attention-grab and points at the actual object;
+            the copy's hint line explains what the two controls do. On phones
+            there is no room for the badge over the laptop. */}
         <Laptop
           theme={theme}
           accent={accent}
           onToggleTheme={onToggleTheme}
           showHint={showHint && !narrow}
+          active={active}
+          reduced={reduced}
         />
-        <Spark accent={accent} onCycleAccent={onCycleAccent} />
+        <Spark accent={accent} onCycleAccent={onCycleAccent} reduced={reduced} />
         <ContactShadow color={c.shadow} opacity={c.shadowOpacity} />
       </group>
     </>
   );
+}
+
+/**
+ * Fires once the first frame has actually been drawn, which is the moment
+ * worth fading the canvas in on. Signalling from `onCreated` instead would
+ * run inside R3F's render phase, where a setState on the parent is invalid.
+ */
+function ReadySignal({ onReady }: { onReady?: () => void }) {
+  const fired = useRef(false);
+  useFrame(() => {
+    if (fired.current) return;
+    fired.current = true;
+    onReady?.();
+  });
+  return null;
 }
 
 function Controls() {
@@ -802,6 +957,7 @@ export function HeroScene({
   showHint,
   onToggleTheme,
   onCycleAccent,
+  onReady,
 }: {
   theme: ThemeMode;
   accent: string;
@@ -809,6 +965,7 @@ export function HeroScene({
   showHint: boolean;
   onToggleTheme: () => void;
   onCycleAccent: () => void;
+  onReady?: () => void;
 }) {
   // OrbitControls attaches touch listeners that block a page-scroll swipe
   // starting on the canvas simply by being mounted — its enabled/enableRotate
@@ -816,6 +973,24 @@ export function HeroScene({
   // This component is dynamically imported with ssr:false, so it only ever
   // renders in the browser — matchMedia is safe to read directly here.
   const [isTouch] = useState(() => window.matchMedia("(pointer: coarse)").matches);
+  const prefersReduced = useReducedMotion();
+  const reduced = prefersReduced ?? false;
+
+  // The canvas would otherwise keep drawing at full rate while someone reads
+  // the sections far below it, which is pure battery on a phone. Pausing the
+  // frame loop leaves the last frame on screen, so nothing visibly changes.
+  const [active, setActive] = useState(true);
+
+  useEffect(() => {
+    const el = document.getElementById("hero-3d");
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entries) => setActive(entries[0]?.isIntersecting ?? true),
+      { rootMargin: "150px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   return (
     // Transparent on purpose: the hero's colour comes from the CSS gradient
@@ -824,7 +999,9 @@ export function HeroScene({
       camera={{ position: [0, 1.45, 5.8], fov: 40 }}
       gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
       dpr={[1, 1.75]}
+      frameloop={active ? "always" : "never"}
     >
+      <ReadySignal onReady={onReady} />
       <Suspense fallback={null}>
         <Scene
           theme={theme}
@@ -832,6 +1009,8 @@ export function HeroScene({
           showHint={showHint}
           onToggleTheme={onToggleTheme}
           onCycleAccent={onCycleAccent}
+          active={active}
+          reduced={reduced}
         />
       </Suspense>
       {!isTouch && <Controls />}

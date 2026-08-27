@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
 import { profile } from "@/lib/data";
+import { useTheme } from "@/components/theme-provider";
 
 const sectionLinks = [
   { hash: "work", label: "Work" },
@@ -12,6 +13,57 @@ const sectionLinks = [
   { hash: "skills", label: "Skills" },
   { hash: "contact", label: "Contact" },
 ];
+
+/**
+ * Conventional controls for the two things the hero's laptop and spark also
+ * do. Clicking the laptop should be a discovery, not the only way in — these
+ * are reachable by keyboard and exist on pages that have no 3D scene at all.
+ */
+function ThemeControls({ className = "" }: { className?: string }) {
+  const { theme, accent, toggleTheme, cycleAccent } = useTheme();
+
+  return (
+    <div className={`flex items-center gap-1 ${className}`}>
+      <button
+        type="button"
+        onClick={cycleAccent}
+        data-cursor-hover
+        aria-label={`Accent colour: ${accent.name}. Change it`}
+        title="Change accent colour"
+        className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-ink/5"
+      >
+        <span className="h-3.5 w-3.5 rounded-full bg-accent ring-1 ring-inset ring-ink/15" />
+      </button>
+
+      <button
+        type="button"
+        onClick={toggleTheme}
+        data-cursor-hover
+        aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+        title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+        className="flex h-8 w-8 items-center justify-center rounded-full text-ink-dim transition-colors hover:bg-ink/5 hover:text-ink"
+      >
+        {theme === "dark" ? (
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+            <circle cx="12" cy="12" r="4.2" />
+            <path
+              strokeLinecap="round"
+              d="M12 2.6v2.2M12 19.2v2.2M21.4 12h-2.2M4.8 12H2.6M18.6 5.4l-1.6 1.6M7 17l-1.6 1.6M18.6 18.6L17 17M7 7L5.4 5.4"
+            />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M20.5 14.6A8.6 8.6 0 1 1 9.4 3.5a6.9 6.9 0 0 0 11.1 11.1Z"
+            />
+          </svg>
+        )}
+      </button>
+    </div>
+  );
+}
 
 export function Nav() {
   const pathname = usePathname();
@@ -62,31 +114,36 @@ export function Nav() {
           </Link>
         </nav>
 
-        <a
-          href={`mailto:${profile.email}`}
-          data-cursor-hover
-          className="hidden font-mono text-xs uppercase tracking-[0.15em] text-ink-dim transition-colors hover:text-accent lg:block"
-        >
-          {profile.email}
-        </a>
+        <div className="flex items-center gap-2 lg:gap-4">
+          <a
+            href={`mailto:${profile.email}`}
+            data-cursor-hover
+            className="hidden font-mono text-xs uppercase tracking-[0.15em] text-ink-dim transition-colors hover:text-accent lg:block"
+          >
+            {profile.email}
+          </a>
 
-        <button
-          data-cursor-hover
-          onClick={() => setOpen((v) => !v)}
-          className="flex flex-col gap-1.5 lg:hidden"
-          aria-label="Toggle menu"
-        >
-          <span
-            className={`h-px w-6 bg-ink transition-transform ${
-              open ? "translate-y-[3.5px] rotate-45" : ""
-            }`}
-          />
-          <span
-            className={`h-px w-6 bg-ink transition-transform ${
-              open ? "-translate-y-[3.5px] -rotate-45" : ""
-            }`}
-          />
-        </button>
+          <ThemeControls />
+
+          <button
+            data-cursor-hover
+            onClick={() => setOpen((v) => !v)}
+            className="flex flex-col gap-1.5 pl-1 lg:hidden"
+            aria-label="Toggle menu"
+            aria-expanded={open}
+          >
+            <span
+              className={`h-px w-6 bg-ink transition-transform ${
+                open ? "translate-y-[3.5px] rotate-45" : ""
+              }`}
+            />
+            <span
+              className={`h-px w-6 bg-ink transition-transform ${
+                open ? "-translate-y-[3.5px] -rotate-45" : ""
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
       {open && (

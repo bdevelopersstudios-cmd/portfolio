@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "motion/react";
 import { profile } from "@/lib/data";
@@ -12,12 +13,31 @@ const HeroScene = dynamic(() => import("@/components/hero-scene").then((m) => m.
 
 const headlineWords = ["Full-stack", "products,", "built", "end", "to", "end."];
 
+/**
+ * Drawn from the same work the Impact section details further down. The third
+ * is the widest by some margin and tips the row onto a second line on a
+ * phone, where the copy is already competing with the laptop for height.
+ */
+const PROOF = [
+  { value: "Since 2022", label: "shipping production apps", wide: false },
+  { value: "976", label: "pages live", wide: false },
+  { value: "28MB → 0.72MB", label: "on the heaviest page", wide: true },
+];
+
 export function Hero() {
   const { theme, accent, hasDiscoveredLaptop, toggleTheme, cycleAccent } = useTheme();
+  // The scene is loaded lazily, so without this the hero shows bare gradient
+  // for a beat and then the laptop snaps in.
+  const [sceneReady, setSceneReady] = useState(false);
 
   return (
     <section id="top" className="hero-bg relative min-h-[100svh] w-full overflow-hidden">
-      <div id="hero-3d" className="absolute inset-0 z-0">
+      <div
+        id="hero-3d"
+        className={`absolute inset-0 z-0 transition-opacity duration-1000 ${
+          sceneReady ? "opacity-100" : "opacity-0"
+        }`}
+      >
         <HeroScene
           theme={theme}
           accent={accent.accent}
@@ -25,6 +45,7 @@ export function Hero() {
           showHint={!hasDiscoveredLaptop}
           onToggleTheme={toggleTheme}
           onCycleAccent={cycleAccent}
+          onReady={() => setSceneReady(true)}
         />
       </div>
 
@@ -49,7 +70,7 @@ export function Hero() {
 
         {/* Width is tuned so "Full-stack products," fills line one and the
             rest falls to line two; text-balance would even them into three. */}
-        <h1 className="max-w-[45rem] font-display text-[clamp(2.5rem,6vw,4.1rem)] leading-[1.04] text-ink">
+        <h1 className="max-w-[45rem] font-display text-[clamp(2.25rem,6vw,4.1rem)] leading-[1.04] text-ink">
           {headlineWords.map((word, i) => (
             <span key={i} className="inline-block overflow-hidden pb-1 pr-[0.22em] align-bottom">
               <motion.span
@@ -68,7 +89,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.65 }}
-          className="mt-5 max-w-md text-lg text-ink-dim text-balance"
+          className="mt-4 max-w-md text-base text-ink-dim text-balance sm:mt-5 sm:text-lg"
         >
           I&apos;m {profile.name} — a developer who takes a product from a Figma
           file through database migrations, without losing the seams in between.
@@ -91,20 +112,32 @@ export function Hero() {
           </MagneticButton>
         </motion.div>
 
+        <motion.dl
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 1 }}
+          className="mt-7 flex flex-wrap gap-x-6 gap-y-3 border-t border-line pt-5 sm:mt-10 sm:max-w-lg sm:gap-x-8 sm:pt-6"
+        >
+          {PROOF.map((stat) => (
+            <div key={stat.value} className={stat.wide ? "hidden sm:block" : undefined}>
+              <dt className="font-display text-base leading-none text-ink sm:text-lg">{stat.value}</dt>
+              <dd className="mt-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-faint sm:text-[10px] sm:tracking-[0.15em]">
+                {stat.label}
+              </dd>
+            </div>
+          ))}
+        </motion.dl>
+
+        {/* The 3D badge over the laptop does the attention-grabbing; this line
+            only ever explains what the two controls do, so the two aren't
+            saying the same thing side by side. */}
         <motion.p
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1, scale: hasDiscoveredLaptop ? 1 : [1, 1.06, 1] }}
-          transition={{
-            opacity: { duration: 0.6, delay: 1.4 },
-            scale: { duration: 1.6, repeat: hasDiscoveredLaptop ? 0 : Infinity, ease: "easeInOut" },
-          }}
-          className={`pointer-events-none mt-8 font-mono text-[11px] uppercase tracking-[0.15em] ${
-            hasDiscoveredLaptop ? "text-ink-faint" : "font-semibold text-accent"
-          }`}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 1.4 }}
+          className="pointer-events-none mt-5 font-mono text-[9px] uppercase tracking-[0.12em] text-ink-faint sm:mt-6 sm:text-[11px] sm:tracking-[0.15em]"
         >
-          {hasDiscoveredLaptop
-            ? "Click the laptop for theme, the spark for accent"
-            : "👆 It's interactive — try clicking it"}
+          Click the laptop for theme, the spark for accent
         </motion.p>
       </div>
 

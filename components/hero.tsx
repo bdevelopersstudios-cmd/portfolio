@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "motion/react";
 import { profile } from "@/lib/data";
 import { MagneticButton } from "@/components/magnetic-button";
 import { useTheme } from "@/components/theme-provider";
+import { ACCENTS } from "@/lib/theme";
 
 const HeroScene = dynamic(() => import("@/components/hero-scene").then((m) => m.HeroScene), {
   ssr: false,
@@ -25,10 +26,21 @@ const PROOF = [
 ];
 
 export function Hero() {
-  const { theme, accent, hasDiscoveredLaptop, toggleTheme, cycleAccent } = useTheme();
+  const { theme, accent, accentIndex, hasDiscoveredLaptop, toggleTheme, setAccent, markDiscovered } =
+    useTheme();
   // The scene is loaded lazily, so without this the hero shows bare gradient
   // for a beat and then the laptop snaps in.
   const [sceneReady, setSceneReady] = useState(false);
+
+  // Only a click on the actual laptop retires its "it's interactive" badge —
+  // using the nav or the swatches above says nothing about having found it.
+  const handleLaptopClick = useCallback(() => {
+    markDiscovered();
+    toggleTheme();
+  }, [markDiscovered, toggleTheme]);
+
+  // Stable identity so ReadySignal's effect doesn't re-fire on every render.
+  const handleSceneReady = useCallback(() => setSceneReady(true), []);
 
   return (
     <section id="top" className="hero-bg relative min-h-[100svh] w-full overflow-hidden">
@@ -43,9 +55,8 @@ export function Hero() {
           accent={accent.accent}
           accent2={accent.accent2}
           showHint={!hasDiscoveredLaptop}
-          onToggleTheme={toggleTheme}
-          onCycleAccent={cycleAccent}
-          onReady={() => setSceneReady(true)}
+          onToggleTheme={handleLaptopClick}
+          onReady={handleSceneReady}
         />
       </div>
 
@@ -128,17 +139,47 @@ export function Hero() {
           ))}
         </motion.dl>
 
-        {/* The 3D badge over the laptop does the attention-grabbing; this line
-            only ever explains what the two controls do, so the two aren't
-            saying the same thing side by side. */}
-        <motion.p
+        {/* Swatches rather than the old orbiting spark: a target that moves is
+            a target you have to chase, and this shows the choices instead of
+            making you click repeatedly to find one. */}
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 1.4 }}
-          className="pointer-events-none mt-5 font-mono text-[9px] uppercase tracking-[0.12em] text-ink-faint sm:mt-6 sm:text-[11px] sm:tracking-[0.15em]"
+          className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3 sm:mt-6"
         >
-          Click the laptop for theme, the spark for accent
-        </motion.p>
+          <div className="flex items-center gap-2.5">
+            <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-ink-faint sm:text-[11px] sm:tracking-[0.15em]">
+              Accent
+            </span>
+            <div className="pointer-events-auto flex items-center gap-2">
+              {ACCENTS.map((option, i) => (
+                <button
+                  key={option.name}
+                  type="button"
+                  onClick={() => setAccent(i)}
+                  data-cursor-hover
+                  aria-label={`Use the ${option.name} accent`}
+                  aria-pressed={i === accentIndex}
+                  title={option.name}
+                  style={{ backgroundColor: option.accent }}
+                  className={`h-4 w-4 rounded-full ring-1 ring-inset ring-black/15 transition-transform hover:scale-110 ${
+                    i === accentIndex
+                      ? "scale-110 outline outline-2 outline-offset-2 outline-ink/35"
+                      : "opacity-65 hover:opacity-100"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Shortened on phones, where the full sentence wraps onto its own
+              line and lands on top of the laptop. */}
+          <span className="pointer-events-none font-mono text-[9px] uppercase tracking-[0.12em] text-ink-faint sm:text-[11px] sm:tracking-[0.15em]">
+            <span className="sm:hidden">&middot; Tap the laptop</span>
+            <span className="hidden sm:inline">&middot; Click the laptop to switch theme</span>
+          </span>
+        </motion.div>
       </div>
 
       <motion.div

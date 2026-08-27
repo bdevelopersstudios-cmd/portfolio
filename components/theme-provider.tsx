@@ -15,7 +15,9 @@ type ThemeContextValue = {
   accent: (typeof ACCENTS)[number];
   hasDiscoveredLaptop: boolean;
   toggleTheme: () => void;
+  setAccent: (index: number) => void;
   cycleAccent: () => void;
+  markDiscovered: () => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -54,25 +56,34 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setHasDiscoveredLaptop(true);
   }, []);
 
+  // Note these no longer mark the laptop discovered: the theme and accent are
+  // reachable from the nav and the hero's own picker now, and using one of
+  // those says nothing about whether the 3D laptop has been found. Only the
+  // laptop's click handler marks it, so its badge stays honest.
   const toggleTheme = useCallback(() => {
-    markDiscovered();
     setTheme((prev) => {
       const next = prev === "light" ? "dark" : "light";
       document.documentElement.setAttribute("data-theme", next);
       localStorage.setItem(THEME_STORAGE_KEY, next);
       return next;
     });
-  }, [markDiscovered]);
+  }, []);
+
+  const setAccent = useCallback((index: number) => {
+    if (!ACCENTS[index]) return;
+    applyAccent(index);
+    localStorage.setItem(ACCENT_STORAGE_KEY, String(index));
+    setAccentIndex(index);
+  }, []);
 
   const cycleAccent = useCallback(() => {
-    markDiscovered();
     setAccentIndex((prev) => {
       const next = (prev + 1) % ACCENTS.length;
       applyAccent(next);
       localStorage.setItem(ACCENT_STORAGE_KEY, String(next));
       return next;
     });
-  }, [markDiscovered]);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -81,9 +92,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       accent: ACCENTS[accentIndex],
       hasDiscoveredLaptop,
       toggleTheme,
+      setAccent,
       cycleAccent,
+      markDiscovered,
     }),
-    [theme, accentIndex, hasDiscoveredLaptop, toggleTheme, cycleAccent]
+    [theme, accentIndex, hasDiscoveredLaptop, toggleTheme, setAccent, cycleAccent, markDiscovered]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

@@ -569,74 +569,33 @@ function Laptop({
   );
 }
 
-function Spark({
-  accent,
-  onCycleAccent,
-  reduced,
-}: {
-  accent: string;
-  onCycleAccent: () => void;
-  reduced: boolean;
-}) {
-  const ref = useRef<THREE.Group>(null);
+/**
+ * A stationary accent-coloured lamp beside the laptop. It used to orbit and
+ * double as the accent control, which made it a moving target — picking an
+ * accent now happens in the hero's swatch row, and this is purely the light
+ * that keeps the accent present in the scene.
+ */
+function AccentLamp({ accent, reduced }: { accent: string; reduced: boolean }) {
   const matRef = useRef<THREE.MeshBasicMaterial>(null);
   const haloRef = useRef<THREE.MeshBasicMaterial>(null);
-  const wasTap = useWasTap();
-  const [hovered, setHovered] = useState(false);
 
   useFrame(({ clock }) => {
-    if (ref.current && !reduced) {
-      const t = clock.elapsedTime * 0.5;
-      ref.current.position.set(Math.cos(t) * 2.5, 1.15 + Math.sin(t * 1.4) * 0.35, Math.sin(t) * 2.5);
-    }
-    const pulse = reduced ? 1 : 0.65 + Math.sin(clock.elapsedTime * 3) * 0.35;
+    const pulse = reduced ? 1 : 0.7 + Math.sin(clock.elapsedTime * 1.6) * 0.3;
     if (matRef.current) matRef.current.opacity = pulse;
     if (haloRef.current) haloRef.current.opacity = pulse * 0.16;
   });
 
   return (
-    // Parked at a fixed point under reduced motion rather than orbiting.
-    <group ref={ref} position={reduced ? [2.5, 1.15, 0] : undefined}>
-      {/* Oversized invisible hit target — even enlarged, the orb is a small
-          thing to ask someone to hit precisely. */}
-      <mesh
-        onClick={(e) => {
-          e.stopPropagation();
-          if (!wasTap(e)) return;
-          onCycleAccent();
-        }}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          setHoverCursor(true);
-          setHovered(true);
-        }}
-        onPointerOut={() => {
-          setHoverCursor(false);
-          setHovered(false);
-        }}
-      >
-        <sphereGeometry args={[0.34, 8, 8]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-      </mesh>
-
-      {/* Soft halo so it reads as a light source rather than a stray dot. */}
+    <group position={[-2.1, 0.75, 0.6]}>
       <mesh>
         <sphereGeometry args={[0.2, 16, 16]} />
         <meshBasicMaterial ref={haloRef} color={accent} transparent depthWrite={false} toneMapped={false} />
       </mesh>
       <mesh>
-        <sphereGeometry args={[0.09, 16, 16]} />
+        <sphereGeometry args={[0.075, 16, 16]} />
         <meshBasicMaterial ref={matRef} color={accent} transparent toneMapped={false} />
       </mesh>
-      <pointLight color={accent} intensity={1.2} distance={2.5} decay={2} />
-
-      {hovered && (
-        <Html position={[0, 0.3, 0]} center transform={false} zIndexRange={[10, 0]}>
-          <div className="pointer-events-none whitespace-nowrap rounded-full border border-white/25 bg-[#11151d]/95 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-white shadow-lg">
-            Change accent
-          </div>
-        </Html>
-      )}
+      <pointLight color={accent} intensity={1.2} distance={3} decay={2} />
     </group>
   );
 }
@@ -836,7 +795,6 @@ function Scene({
   accent,
   showHint,
   onToggleTheme,
-  onCycleAccent,
   active,
   reduced,
 }: {
@@ -844,7 +802,6 @@ function Scene({
   accent: string;
   showHint: boolean;
   onToggleTheme: () => void;
-  onCycleAccent: () => void;
   active: boolean;
   reduced: boolean;
 }) {
@@ -912,7 +869,7 @@ function Scene({
           active={active}
           reduced={reduced}
         />
-        <Spark accent={accent} onCycleAccent={onCycleAccent} reduced={reduced} />
+        <AccentLamp accent={accent} reduced={reduced} />
         <ContactShadow color={c.shadow} opacity={c.shadowOpacity} />
       </group>
     </>
@@ -956,7 +913,6 @@ export function HeroScene({
   accent,
   showHint,
   onToggleTheme,
-  onCycleAccent,
   onReady,
 }: {
   theme: ThemeMode;
@@ -964,7 +920,6 @@ export function HeroScene({
   accent2: string;
   showHint: boolean;
   onToggleTheme: () => void;
-  onCycleAccent: () => void;
   onReady?: () => void;
 }) {
   // OrbitControls attaches touch listeners that block a page-scroll swipe
@@ -1008,7 +963,6 @@ export function HeroScene({
           accent={accent}
           showHint={showHint}
           onToggleTheme={onToggleTheme}
-          onCycleAccent={onCycleAccent}
           active={active}
           reduced={reduced}
         />

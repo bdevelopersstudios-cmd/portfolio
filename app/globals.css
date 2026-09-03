@@ -188,246 +188,159 @@ html {
   mix-blend-mode: multiply;
 }
 
-/* --- Aurora: the page's background below the hero ---------------------
-   The same mesh-gradient language the hero is built from, carried down the
-   rest of the page. Each blob is a soft radial wash painted once; scrolling
-   only ever changes `transform` and `opacity`, so the browser can treat it
-   as compositor work instead of repainting a gradient every frame.
-   Blur is deliberately avoided for the same reason — the falloff is already
-   soft, and a filter on something this large is not free. */
-.aurora {
+/* --- Backdrop: technical grid + a light that follows you -------------------
+   Replaces the gradient wash. The grid is one static promoted layer that never
+   repaints; only the light moves, by transform alone. */
+.backdrop {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
-  /* Fades out over the hero, which owns its own background. */
   opacity: 0;
   transition: opacity 0.6s ease;
 }
 
-.aurora[data-lit="true"] {
+.backdrop[data-lit="true"],
+body:has(.backdrop) .backdrop {
   opacity: 1;
 }
 
-.aurora-blob {
+/* Graph paper: a fine cell with a heavier rule every fifth line, which is what
+   separates a drafting grid from a plain checkerboard. */
+.backdrop-grid {
   position: absolute;
-  border-radius: 50%;
+  inset: 0;
+  transform: translateZ(0);
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--grid-line) 90%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--grid-line) 90%, transparent) 1px, transparent 1px),
+    linear-gradient(to right, color-mix(in oklab, var(--grid-line) 42%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--grid-line) 42%, transparent) 1px, transparent 1px);
+  background-size:
+    160px 160px,
+    160px 160px,
+    32px 32px,
+    32px 32px;
+}
+
+/* The light. Sized generously and faded to nothing at the edge so there is no
+   visible boundary — a hard edge would read as a circle drawn on the page. */
+.backdrop-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 62rem;
+  height: 62rem;
   will-change: transform;
-  transform: translate3d(0, 0, 0);
+  background: radial-gradient(
+    circle at center,
+    color-mix(in oklab, var(--accent) 20%, transparent) 0%,
+    color-mix(in oklab, var(--accent) 9%, transparent) 32%,
+    transparent 68%
+  );
 }
 
-/* Sized in vmax so the composition holds its proportions from a phone to an
-   ultrawide, rather than becoming four tiny dots on a large screen. */
-.aurora-a {
-  width: 78vmax;
-  height: 78vmax;
-  top: -26vmax;
-  right: -22vmax;
-  background: radial-gradient(circle at center, color-mix(in oklab, var(--accent) 48%, transparent), transparent 66%);
+/* --- Section tones ---------------------------------------------------------
+   Each section owns a surface colour, and the dark ones redefine the ink and
+   line tokens locally. Everything downstream already reads those variables, so
+   text, hairlines and borders all invert without a single component knowing
+   which tone it happens to be sitting on. */
+.tone {
+  position: relative;
+  background: var(--surface);
 }
 
-.aurora-b {
-  width: 66vmax;
-  height: 66vmax;
-  top: 18vmax;
-  left: -28vmax;
-  background: radial-gradient(circle at center, color-mix(in oklab, var(--accent-2) 44%, transparent), transparent 66%);
+.tone-bone {
+  --surface: #f4f2ee;
+  --grid-line: #0d1117;
 }
 
-.aurora-c {
-  width: 72vmax;
-  height: 72vmax;
-  bottom: -30vmax;
-  left: 14vmax;
-  background: radial-gradient(circle at center, color-mix(in oklab, #22d3ee 38%, transparent), transparent 66%);
+.tone-sand {
+  --surface: #efe9e1;
+  --grid-line: #0d1117;
 }
 
-.aurora-d {
-  width: 54vmax;
-  height: 54vmax;
-  top: 40vmax;
-  right: 4vmax;
-  background: radial-gradient(circle at center, color-mix(in oklab, #a78bfa 36%, transparent), transparent 66%);
+.tone-ink {
+  --surface: #12161f;
+  --grid-line: #ffffff;
+  --ink: #f2f5f9;
+  --ink-dim: rgba(242, 245, 249, 0.68);
+  --ink-faint: rgba(242, 245, 249, 0.42);
+  --line: rgba(242, 245, 249, 0.16);
+  --line-soft: rgba(242, 245, 249, 0.09);
+  --bg-raised: rgba(255, 255, 255, 0.045);
+  color: var(--ink);
 }
 
-html[data-theme="dark"] .aurora-a {
-  background: radial-gradient(circle at center, color-mix(in oklab, var(--accent) 46%, transparent), transparent 68%);
-}
-html[data-theme="dark"] .aurora-b {
-  background: radial-gradient(circle at center, color-mix(in oklab, var(--accent-2) 30%, transparent), transparent 68%);
-}
-html[data-theme="dark"] .aurora-c {
-  background: radial-gradient(circle at center, color-mix(in oklab, #22d3ee 30%, transparent), transparent 68%);
-}
-html[data-theme="dark"] .aurora-d {
-  background: radial-gradient(circle at center, color-mix(in oklab, #a78bfa 32%, transparent), transparent 68%);
+.tone-black {
+  --surface: #080a0e;
+  --grid-line: #ffffff;
+  --ink: #f2f5f9;
+  --ink-dim: rgba(242, 245, 249, 0.66);
+  --ink-faint: rgba(242, 245, 249, 0.4);
+  --line: rgba(242, 245, 249, 0.14);
+  --line-soft: rgba(242, 245, 249, 0.08);
+  --bg-raised: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
 }
 
+/* In the dark theme the light tones have to come down too, or the page would
+   flash white between two dark sections. */
+html[data-theme="dark"] .tone-bone {
+  --surface: #151a22;
+  --grid-line: #ffffff;
+  --ink: #eef2f6;
+  --ink-dim: rgba(238, 242, 246, 0.66);
+  --ink-faint: rgba(238, 242, 246, 0.4);
+  --line: rgba(238, 242, 246, 0.14);
+  --line-soft: rgba(238, 242, 246, 0.08);
+  --bg-raised: rgba(255, 255, 255, 0.04);
+}
 
-/* --- Aurora texture layers -------------------------------------------------
-   Soft radial blobs alone read as generic — every gradient background looks
-   like that now. What separates a premium one is texture and iridescence, so
-   three layers sit over the blobs: an angled light sweep, a conic shimmer,
-   and grain.
+html[data-theme="dark"] .tone-sand {
+  --surface: #1b1a18;
+  --grid-line: #ffffff;
+  --ink: #f2efe9;
+  --ink-dim: rgba(242, 239, 233, 0.66);
+  --ink-faint: rgba(242, 239, 233, 0.4);
+  --line: rgba(242, 239, 233, 0.14);
+  --line-soft: rgba(242, 239, 233, 0.08);
+  --bg-raised: rgba(255, 255, 255, 0.04);
+}
 
-   Grain is the important one. A perfectly smooth gradient reads as flat
-   colour; a grained one reads as a printed surface, and it also kills the
-   banding that large soft gradients show on 8-bit displays. */
-
-/* A single inline SVG turbulence, rasterised once by the browser and tiled.
-   Cheaper than a filter on a live element, which would re-run every frame. */
-.aurora-grain {
+/* Each toned section carries its own grid, since the fixed backdrop cannot
+   show through an opaque surface. */
+.tone::before {
+  content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  transform: translateZ(0);
-  opacity: 0.22;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 220px 220px;
+  opacity: 0.055;
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
 
-html[data-theme="dark"] .aurora-grain {
-  opacity: 0.3;
-}
-
-/* Angled bands of light. Gives the wash a direction, which is what stops a
-   field of radial blobs looking like a lava lamp. */
-.aurora-sweep {
-  position: absolute;
-  inset: -18%;
-  pointer-events: none;
-  /* Promoted and static. Measured: translating this on scroll halved the
-     frame rate, because a gradient this large repaints rather than
-     composites. The blobs in front already carry the parallax. */
-  transform: translateZ(0);
-  opacity: 0.55;
-  background: repeating-linear-gradient(
-    115deg,
-    transparent 0 8vmax,
-    color-mix(in oklab, var(--accent) 9%, transparent) 8vmax 12vmax,
-    transparent 12vmax 26vmax
-  );
-}
-
-html[data-theme="dark"] .aurora-sweep {
-  opacity: 0.4;
-  background: repeating-linear-gradient(
-    115deg,
-    transparent 0 8vmax,
-    color-mix(in oklab, var(--accent) 14%, transparent) 8vmax 12vmax,
-    transparent 12vmax 26vmax
-  );
-}
-
-/* Conic shimmer — the iridescent, oil-on-water quality that a stack of
-   radial gradients cannot produce on its own. Rotates with scroll. */
-.aurora-shimmer {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 108vmax;
-  height: 108vmax;
-  margin: -54vmax 0 0 -54vmax;
-  pointer-events: none;
-  transform: translateZ(0);
-  opacity: 0.35;
-  border-radius: 50%;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    color-mix(in oklab, var(--accent) 26%, transparent) 55deg,
-    transparent 120deg,
-    color-mix(in oklab, #22d3ee 24%, transparent) 190deg,
-    transparent 250deg,
-    color-mix(in oklab, var(--accent-2) 22%, transparent) 310deg,
-    transparent 360deg
-  );
-  -webkit-mask-image: radial-gradient(circle at center, #000 25%, transparent 62%);
-  mask-image: radial-gradient(circle at center, #000 25%, transparent 62%);
-}
-
-html[data-theme="dark"] .aurora-shimmer {
-  opacity: 0.5;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .aurora-sweep,
-  .aurora-shimmer {
-    transform: none !important;
-  }
-}
-
-/* Keeps body copy off the strongest part of the wash without flattening it. */
-.aurora-veil {
+/* A heavier rule every fifth cell, plus tick marks along the top edge — the
+   detail that makes it read as a drawing rather than wallpaper. */
+.tone::after {
+  content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to bottom,
-    color-mix(in oklab, var(--bg) 44%, transparent),
-    color-mix(in oklab, var(--bg) 20%, transparent) 45%,
-    color-mix(in oklab, var(--bg) 44%, transparent)
-  );
+  pointer-events: none;
+  opacity: 0.09;
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 160px 160px;
 }
 
-@keyframes laptop-hint-bounce {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
-}
-
-.laptop-hint {
-  animation: laptop-hint-bounce 1.6s ease-in-out infinite;
-}
-
-@keyframes marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-.marquee-track {
-  animation: marquee 32s linear infinite;
-}
-
-.font-display {
-  font-family: var(--font-display);
-}
-.font-mono {
-  font-family: var(--font-mono);
-}
-
-.text-balance {
-  text-wrap: balance;
-}
-
-html.cursor-hidden,
-html.cursor-hidden a,
-html.cursor-hidden button {
-  cursor: none;
-}
-
-/* Text fields keep the real I-beam. The custom dot hides itself over them
-   (see cursor.tsx) rather than the two being shown at once — when you are
-   about to type, you need to see where the caret will land. */
-html.cursor-hidden input,
-html.cursor-hidden textarea,
-html.cursor-hidden select {
-  cursor: auto;
-}
-
-/* And the caret itself takes the accent, so it is visible against both
-   themes rather than defaulting to something close to the panel colour. */
-input,
-textarea {
-  caret-color: var(--accent);
+/* Content has to sit above both grid pseudo-elements. */
+.tone > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* --- Surfaces -------------------------------------------------------------

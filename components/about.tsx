@@ -21,7 +21,7 @@ export function About() {
   });
 
   return (
-    <section id="about" className="border-b border-line-soft py-28 sm:py-36">
+    <section id="about" className="tone tone-bone border-b border-line-soft py-28 sm:py-36">
       <div className="mx-auto max-w-[1400px] px-6 sm:px-10 lg:px-16">
         <SectionHeading index="00" label="About" title="Ships product, not just code." />
 

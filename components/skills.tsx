@@ -25,7 +25,7 @@ export function Skills() {
   const reduced = useReducedMotion();
 
   return (
-    <section id="skills" className="border-b border-line-soft py-28 sm:py-36">
+    <section id="skills" className="tone tone-ink border-b border-line-soft py-28 sm:py-36">
       <div className="mx-auto max-w-[1400px] px-6 sm:px-10 lg:px-16">
         <SectionHeading
           index="04"

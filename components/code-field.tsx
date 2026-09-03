@@ -1,23 +1,28 @@
 "use client";
 
 import { useRef } from "react";
-import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import {
+  motion,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+  type MotionValue,
+} from "motion/react";
 
 /**
  * The page background, per section: the repository this site was built from.
  *
- * Each section shows a different artifact of the work — a source file, the
- * commit graph, a build log, a diff, the dependency list, a shell session —
- * drifting past at two different speeds. That is the parallax: two layers per
- * section, the deep one barely moving and the near one moving faster than the
- * page, so the background has depth instead of being a flat texture that
- * scrolls along with everything else.
+ * Each section shows a different artifact of the work — an editor holding the
+ * page generator, the commit graph, the build log, a policy diff, the
+ * dependency list, a shell session — on two layers moving at different speeds.
+ * That difference is the parallax: the graph barely moves, the editor moves
+ * three times as far, so the background has depth rather than scrolling along
+ * with the page. The graph also draws itself as the section passes, which is
+ * the part that makes it read as a thing happening rather than a texture.
  *
- * Everything here moves by transform only. Framer Motion writes the transform
- * straight to the element outside React's render, so scrolling never
- * re-renders a component and never repaints a layer — the background this
- * replaces translated a full-viewport gradient every frame and cost half the
- * frame rate for it.
+ * The layers move by transform only, and Framer Motion writes those straight
+ * to the element outside React's render, so scrolling never re-renders a
+ * component and never repaints a layer.
  */
 
 type Kind = "k" | "s" | "n" | "c" | "f" | "p" | "d";
@@ -100,85 +105,163 @@ const PROMPT: Line[] = [
   [["~ ", "d"], ["usman@studio", "k"], [" $ ", "d"], ["git push origin main", "f"]],
   [["Enumerating objects: ", "d"], ["247", "n"], [", done.", "d"]],
   [["To github.com:usman/platform.git", "d"]],
-  [["   ", "d"], ["a1f39c2..2313716", "n"], ["  main -> main", "p"]],
+  [["   ", "d"], ["a1f39c2..0c9466d", "n"], ["  main -> main", "p"]],
   [["", "p"]],
   [["~ ", "d"], ["usman@studio", "k"], [" $ ", "d"], ["mail ", "f"], ["hello@", "s"]],
 ];
 
-const SOURCE: Record<Motif, Line[]> = {
-  file: FILE,
-  graph: FILE,
-  log: LOG,
-  diff: DIFF,
-  deps: DEPS,
-  prompt: PROMPT,
+const META: Record<Motif, { name: string; lines: Line[] }> = {
+  file: { name: "generate.ts", lines: FILE },
+  graph: { name: "log --graph", lines: FILE },
+  log: { name: "build.log", lines: LOG },
+  diff: { name: "policies.sql", lines: DIFF },
+  deps: { name: "package.json", lines: DEPS },
+  prompt: { name: "zsh", lines: PROMPT },
 };
 
-function CodeBlock({ lines }: { lines: Line[] }) {
+/**
+ * The editor the code sits in. Bare text floating on the surface read as a
+ * watermark; the window chrome, the gutter rule and the caret are what make it
+ * read as an editor at a glance, which is the whole point of the motif.
+ */
+function EditorPanel({ motif }: { motif: Motif }) {
+  const { name, lines } = META[motif];
+  const last = lines.length - 1;
+
   return (
-    <pre className="font-mono text-[13.5px] leading-[2.15] sm:text-[16px]">
-      {lines.map((line, i) => (
-        <div key={i} className="flex gap-5 whitespace-pre">
-          <span className="w-6 shrink-0 select-none text-right text-ink-faint">{i + 1}</span>
-          <span>
-            {line.map(([text, kind], j) => (
-              <span key={j} className={KIND[kind]}>
-                {text}
-              </span>
-            ))}
-          </span>
-        </div>
-      ))}
-    </pre>
+    <div className="w-[34rem] max-w-[94vw] rounded-xl border border-ink-faint lg:w-[40rem]">
+      <div className="flex items-center gap-2 border-b border-ink-faint px-4 py-2.5">
+        <span className="h-2.5 w-2.5 rounded-full border border-ink-faint" />
+        <span className="h-2.5 w-2.5 rounded-full border border-ink-faint" />
+        <span className="h-2.5 w-2.5 rounded-full border border-ink-faint" />
+        <span className="ml-2 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-dim">
+          {name}
+        </span>
+      </div>
+
+      <pre className="overflow-hidden px-4 py-4 font-mono text-[13.5px] leading-[2.1] sm:text-[15px] lg:text-[16px]">
+        {lines.map((line, i) => (
+          <div key={i} className="flex gap-4 whitespace-pre">
+            <span className="w-5 shrink-0 select-none border-r border-ink-faint pr-3 text-right text-ink-faint">
+              {i + 1}
+            </span>
+            <span>
+              {line.map(([text, kind], j) => (
+                <span key={j} className={KIND[kind]}>
+                  {text}
+                </span>
+              ))}
+              {i === last && <span className="code-caret" />}
+            </span>
+          </div>
+        ))}
+      </pre>
+    </div>
+  );
+}
+
+const NODES: Array<[number, number]> = [
+  [40, 40],
+  [40, 90],
+  [110, 160],
+  [110, 200],
+  [180, 262],
+  [110, 265],
+  [180, 300],
+  [110, 330],
+  [40, 400],
+  [40, 450],
+];
+
+/** One commit. Its own component so each can hold a hook without putting a
+ *  hook inside a loop. */
+function CommitNode({
+  cx,
+  cy,
+  at,
+  progress,
+}: {
+  cx: number;
+  cy: number;
+  at: number;
+  progress: MotionValue<number>;
+}) {
+  const opacity = useTransform(progress, [at - 0.04, at], [0, 1]);
+  const r = useTransform(progress, [at - 0.04, at], [2, 7]);
+
+  return (
+    <motion.circle
+      cx={cx}
+      cy={cy}
+      r={r}
+      style={{ opacity }}
+      fill="var(--surface, var(--bg))"
+      stroke="currentColor"
+      strokeWidth="2.5"
+    />
   );
 }
 
 /**
- * The commit graph: three lanes, one branch and one merge. Drawn rather than
- * listed, because the shape is the part that is recognisable at a glance and
- * at this opacity.
+ * The commit graph: three lanes, one branch and one merge, drawing itself as
+ * the section goes by. The shape is what is recognisable at this opacity — far
+ * more than a list of hashes would be.
  */
-function CommitGraph() {
-  const nodes: Array<[number, number]> = [
-    [40, 40],
-    [40, 90],
-    [110, 160],
-    [110, 200],
-    [180, 262],
-    [110, 265],
-    [180, 300],
-    [110, 330],
-    [40, 400],
-    [40, 450],
+function CommitGraph({
+  progress,
+  reduced,
+}: {
+  progress: MotionValue<number>;
+  reduced: boolean | null;
+}) {
+  const draw = useTransform(progress, [0.02, 0.55], [0, 1]);
+  const paths = [
+    "M40 0 V460",
+    "M40 90 C40 130, 110 120, 110 160 V330 C110 370, 40 360, 40 400",
+    "M110 200 C110 235, 180 228, 180 262 V300",
   ];
 
   return (
     <svg viewBox="0 0 220 460" className="h-full w-full" fill="none" aria-hidden="true">
-      <path d="M40 0 V460" stroke="currentColor" strokeWidth="2" />
-      <path
-        d="M40 90 C40 130, 110 120, 110 160 V330 C110 370, 40 360, 40 400"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path d="M110 200 C110 235, 180 228, 180 262 V300" stroke="currentColor" strokeWidth="2" />
-      {nodes.map(([cx, cy], i) => (
-        <circle
-          key={i}
-          cx={cx}
-          cy={cy}
-          r="7"
-          fill="var(--surface, var(--bg))"
+      {paths.map((d) => (
+        <motion.path
+          key={d}
+          d={d}
           stroke="currentColor"
-          strokeWidth="2.5"
+          strokeWidth="2"
+          style={reduced ? undefined : { pathLength: draw }}
         />
       ))}
+      {NODES.map(([cx, cy], i) =>
+        reduced ? (
+          <circle
+            key={i}
+            cx={cx}
+            cy={cy}
+            r="7"
+            fill="var(--surface, var(--bg))"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          />
+        ) : (
+          <CommitNode
+            key={i}
+            cx={cx}
+            cy={cy}
+            // Spread across the same window the lines draw in, so nodes land
+            // just behind the line reaching them.
+            at={0.06 + (i / NODES.length) * 0.5}
+            progress={progress}
+          />
+        )
+      )}
     </svg>
   );
 }
 
 const COMMITS: Array<[string, string]> = [
+  ["0c9466d", "Background: the repository, in parallax"],
   ["2313716", "Colour-block the sections"],
-  ["82efddb", "Grain, banding, iridescence"],
   ["5a37a64", "Glass surfaces, section markers"],
   ["ff1e293", "LLM backend for the assistant"],
   ["a856233", "Scoped site assistant"],
@@ -191,7 +274,7 @@ const COMMITS: Array<[string, string]> = [
  */
 export function CodeWall() {
   const reduced = useReducedMotion();
-  const { scrollY } = useScroll();
+  const { scrollY, scrollYProgress } = useScroll();
   const deep = useTransform(scrollY, [0, 3000], [0, -140]);
   const near = useTransform(scrollY, [0, 3000], [0, -520]);
 
@@ -201,19 +284,19 @@ export function CodeWall() {
         style={reduced ? undefined : { y: deep }}
         className="absolute left-[4%] top-[8%] hidden h-[70vh] w-40 text-ink sm:block"
       >
-        <CommitGraph />
+        <CommitGraph progress={scrollYProgress} reduced={reduced} />
       </motion.div>
       <motion.div
         style={reduced ? undefined : { y: near }}
-        className="code-field-fade absolute right-[-6%] top-[10%] lg:right-[-1%]"
+        className="absolute right-[-8%] top-[12%] lg:right-[-2%]"
       >
-        <CodeBlock lines={FILE} />
+        <EditorPanel motif="file" />
       </motion.div>
       <motion.div
         style={reduced ? undefined : { y: deep }}
-        className="code-field-fade absolute bottom-[-30%] left-[6%] hidden lg:block"
+        className="absolute bottom-[-24%] left-[6%] hidden lg:block"
       >
-        <CodeBlock lines={LOG} />
+        <EditorPanel motif="log" />
       </motion.div>
     </div>
   );
@@ -226,9 +309,9 @@ export function CodeField({
 }: {
   motif: Motif;
   align?: "left" | "right";
-  /** For sections taller than the viewport — Impact is 220vh with a sticky
-   *  panel — so the field stays in frame instead of scrolling off the top
-   *  while the section is still on screen. */
+  /** For sections taller than the viewport — Impact is 220vh — where a single
+   *  block near the top would be scrolled past while the section is still on
+   *  screen. Stretches the graph and adds a second editor further down. */
   tall?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -244,29 +327,43 @@ export function CodeField({
   const deep = useTransform(scrollYProgress, [0, 1], [60, -60]);
   const near = useTransform(scrollYProgress, [0, 1], [190, -190]);
 
-  const codeSide = align === "right" ? "right-[-6%] lg:right-[-1%]" : "left-[-6%] lg:left-[-1%]";
+  const codeSide = align === "right" ? "right-[-8%] lg:right-[-2%]" : "left-[-8%] lg:left-[-2%]";
   const graphSide = align === "right" ? "left-[4%]" : "right-[4%]";
 
   return (
     <div ref={ref} className="code-field" aria-hidden="true">
-      <div className={tall ? "sticky top-0 h-screen" : "absolute inset-0"}>
       {/* Deep layer: the commit graph, barely moving. Being the slowest thing
           in the section is what places it furthest back. */}
       <motion.div
         style={reduced ? undefined : { y: deep }}
-        className={`absolute top-[6%] hidden h-[68%] w-32 text-ink sm:block sm:w-44 ${graphSide}`}
+        className={`absolute hidden w-32 text-ink sm:block sm:w-44 ${graphSide} ${
+          tall ? "top-[6%] h-[86%]" : "top-[6%] h-[68%]"
+        }`}
       >
-        <CommitGraph />
+        <CommitGraph progress={scrollYProgress} reduced={reduced} />
       </motion.div>
 
-      {/* Near layer: the source. Travels furthest, so it reads as the closest
+      {/* Near layer: the editor. Travels furthest, so it reads as the closest
           thing behind the content. */}
       <motion.div
         style={reduced ? undefined : { y: near }}
-        className={`code-field-fade absolute top-[4%] ${codeSide}`}
+        className={`absolute top-[5%] ${codeSide}`}
       >
-        <CodeBlock lines={SOURCE[motif]} />
+        <EditorPanel motif={motif} />
       </motion.div>
+
+      {/* A tall section needs a second one further down, or the field is off
+          the top of the screen for most of the time the section is in view. */}
+      {tall && (
+        <motion.div
+          style={reduced ? undefined : { y: deep }}
+          className={`absolute top-[58%] hidden lg:block ${
+            align === "right" ? "left-[-2%]" : "right-[-2%]"
+          }`}
+        >
+          <EditorPanel motif="deps" />
+        </motion.div>
+      )}
 
       {/* The commit list only appears where the graph is the point, and only
           where there is real margin to put it in. */}
@@ -283,7 +380,6 @@ export function CodeField({
           ))}
         </motion.div>
       )}
-      </div>
     </div>
   );
 }

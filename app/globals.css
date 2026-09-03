@@ -224,11 +224,27 @@ body:has(.backdrop) .backdrop {
   contain: paint;
 }
 
-/* Faded at the outer edge so a block ends by dissolving rather than being cut
-   off, which would read as content that failed to load. */
-.code-field-fade {
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 76%, transparent);
-  mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 76%, transparent);
+/* The caret on the editor's last line. A static block would read as a stray
+   rectangle; blinking is what identifies it. The reduced-motion rule above
+   already collapses the animation to nothing. */
+.code-caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.05em;
+  vertical-align: -0.18em;
+  background: currentColor;
+  animation: code-caret-blink 1.1s steps(1) infinite;
+}
+
+@keyframes code-caret-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
 }
 
 /* The light. Sized generously and faded to nothing at the edge so there is no
@@ -253,11 +269,13 @@ body:has(.backdrop) .backdrop {
    line tokens locally. Everything downstream already reads those variables, so
    text, hairlines and borders all invert without a single component knowing
    which tone it happens to be sitting on. */
+/* No `overflow` here: the field clips itself, and any overflow value on the
+   section risks turning it into a scroll container, which is the other way to
+   break the sticky panel in Impact. */
 .tone {
   position: relative;
-  overflow: clip;
   background: var(--surface);
-  --field-opacity: 0.2;
+  --field-opacity: 0.24;
 }
 
 .tone-bone {
@@ -318,16 +336,19 @@ html[data-theme="dark"] .tone-sand {
   --bg-raised: rgba(255, 255, 255, 0.04);
 }
 
-/* Content sits above the section's own code field. `overflow: clip` rather
-   than `hidden` on the section: hidden would make the section a scroll
-   container and break the sticky stat panel inside Impact. */
-.tone > * {
-  position: relative;
-  z-index: 1;
+/* The field is pushed behind the content with a negative z-index rather than
+   by lifting every child above it. Lifting the children meant a blanket
+   `.tone > * { position: relative }`, which ties with Tailwind's `.sticky`
+   on specificity and wins on source order — silently overwriting
+   `position: sticky` and unpinning the panel in Impact. `isolation` keeps
+   the -1 inside the section, so the field still paints over the section's
+   own surface colour. */
+.tone {
+  isolation: isolate;
 }
 
 .tone > .code-field {
-  z-index: 0;
+  z-index: -1;
 }
 
 /* --- Surfaces -------------------------------------------------------------

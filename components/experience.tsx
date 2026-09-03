@@ -1,12 +1,14 @@
 "use client";
 
 import { motion } from "motion/react";
+import { CodeField } from "@/components/code-field";
 import { experience, education, certifications } from "@/lib/data";
 import { SectionHeading } from "@/components/section-heading";
 
 export function Experience() {
   return (
     <section id="experience" className="tone tone-sand border-b border-line-soft py-28 sm:py-36">
+      <CodeField motif="diff" align="left" />
       <div className="mx-auto max-w-[1400px] px-6 sm:px-10 lg:px-16">
         <SectionHeading index="03" label="Experience" title="Four years, four very different rooms." />
 

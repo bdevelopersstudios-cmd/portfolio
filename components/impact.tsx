@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "motion/react";
+import { CodeField } from "@/components/code-field";
 
 const STATS = [
   { value: "976", label: "Dynamic city pages generated and shipped" },
@@ -70,6 +71,7 @@ export function Impact() {
 
   return (
     <section id="impact" ref={wrapperRef} className="tone tone-bone relative h-[220vh] border-b border-line-soft">
+      <CodeField motif="log" align="right" tall />
       <div className="sticky top-0 flex h-screen items-center overflow-hidden">
         <div className="mx-auto grid w-full max-w-[1400px] grid-cols-1 items-center gap-10 px-6 sm:px-10 md:grid-cols-2 md:gap-16 lg:px-16">
           <div className="relative order-2 h-40 md:order-1">

@@ -188,9 +188,10 @@ html {
   mix-blend-mode: multiply;
 }
 
-/* --- Backdrop: technical grid + a light that follows you -------------------
-   Replaces the gradient wash. The grid is one static promoted layer that never
-   repaints; only the light moves, by transform alone. */
+/* --- Backdrop: the repository, in parallax ---------------------------------
+   Source, a commit graph and a build log drifting at two speeds behind the
+   page, plus a light that follows the pointer. Everything moves by transform
+   only — nothing here repaints on scroll. */
 .backdrop {
   position: fixed;
   inset: 0;
@@ -199,6 +200,11 @@ html {
   overflow: hidden;
   opacity: 0;
   transition: opacity 0.6s ease;
+  --field-opacity: 0.18;
+}
+
+html[data-theme="dark"] .backdrop {
+  --field-opacity: 0.28;
 }
 
 .backdrop[data-lit="true"],
@@ -206,22 +212,23 @@ body:has(.backdrop) .backdrop {
   opacity: 1;
 }
 
-/* Graph paper: a fine cell with a heavier rule every fifth line, which is what
-   separates a drafting grid from a plain checkerboard. */
-.backdrop-grid {
+/* The parallax code layers. Held at a low opacity because they sit directly
+   under body copy — legible as code at a glance, never competing with it. */
+.code-field {
   position: absolute;
   inset: 0;
-  transform: translateZ(0);
-  background-image:
-    linear-gradient(to right, color-mix(in oklab, var(--grid-line) 90%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in oklab, var(--grid-line) 90%, transparent) 1px, transparent 1px),
-    linear-gradient(to right, color-mix(in oklab, var(--grid-line) 42%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in oklab, var(--grid-line) 42%, transparent) 1px, transparent 1px);
-  background-size:
-    160px 160px,
-    160px 160px,
-    32px 32px,
-    32px 32px;
+  pointer-events: none;
+  user-select: none;
+  overflow: clip;
+  opacity: var(--field-opacity, 0.18);
+  contain: paint;
+}
+
+/* Faded at the outer edge so a block ends by dissolving rather than being cut
+   off, which would read as content that failed to load. */
+.code-field-fade {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 76%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 76%, transparent);
 }
 
 /* The light. Sized generously and faded to nothing at the edge so there is no
@@ -248,22 +255,24 @@ body:has(.backdrop) .backdrop {
    which tone it happens to be sitting on. */
 .tone {
   position: relative;
+  overflow: clip;
   background: var(--surface);
+  --field-opacity: 0.2;
 }
 
 .tone-bone {
   --surface: #f4f2ee;
-  --grid-line: #0d1117;
 }
 
 .tone-sand {
   --surface: #efe9e1;
-  --grid-line: #0d1117;
 }
 
+/* Dark surfaces need the field carried further, or faint text on a dark
+   ground disappears entirely. */
 .tone-ink {
   --surface: #12161f;
-  --grid-line: #ffffff;
+  --field-opacity: 0.3;
   --ink: #f2f5f9;
   --ink-dim: rgba(242, 245, 249, 0.68);
   --ink-faint: rgba(242, 245, 249, 0.42);
@@ -275,7 +284,7 @@ body:has(.backdrop) .backdrop {
 
 .tone-black {
   --surface: #080a0e;
-  --grid-line: #ffffff;
+  --field-opacity: 0.3;
   --ink: #f2f5f9;
   --ink-dim: rgba(242, 245, 249, 0.66);
   --ink-faint: rgba(242, 245, 249, 0.4);
@@ -289,7 +298,7 @@ body:has(.backdrop) .backdrop {
    flash white between two dark sections. */
 html[data-theme="dark"] .tone-bone {
   --surface: #151a22;
-  --grid-line: #ffffff;
+  --field-opacity: 0.3;
   --ink: #eef2f6;
   --ink-dim: rgba(238, 242, 246, 0.66);
   --ink-faint: rgba(238, 242, 246, 0.4);
@@ -300,7 +309,7 @@ html[data-theme="dark"] .tone-bone {
 
 html[data-theme="dark"] .tone-sand {
   --surface: #1b1a18;
-  --grid-line: #ffffff;
+  --field-opacity: 0.3;
   --ink: #f2efe9;
   --ink-dim: rgba(242, 239, 233, 0.66);
   --ink-faint: rgba(242, 239, 233, 0.4);
@@ -309,38 +318,16 @@ html[data-theme="dark"] .tone-sand {
   --bg-raised: rgba(255, 255, 255, 0.04);
 }
 
-/* Each toned section carries its own grid, since the fixed backdrop cannot
-   show through an opaque surface. */
-.tone::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.055;
-  background-image:
-    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
-  background-size: 32px 32px;
-}
-
-/* A heavier rule every fifth cell, plus tick marks along the top edge — the
-   detail that makes it read as a drawing rather than wallpaper. */
-.tone::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.09;
-  background-image:
-    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
-  background-size: 160px 160px;
-}
-
-/* Content has to sit above both grid pseudo-elements. */
+/* Content sits above the section's own code field. `overflow: clip` rather
+   than `hidden` on the section: hidden would make the section a scroll
+   container and break the sticky stat panel inside Impact. */
 .tone > * {
   position: relative;
   z-index: 1;
+}
+
+.tone > .code-field {
+  z-index: 0;
 }
 
 /* --- Surfaces -------------------------------------------------------------

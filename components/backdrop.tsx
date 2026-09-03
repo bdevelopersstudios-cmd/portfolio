@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { CodeWall } from "@/components/code-field";
 
 /**
- * The page backdrop: a technical grid with a light that follows you.
+ * The backdrop for pages that are not colour-blocked into sections — Tools,
+ * Services, Templates. It carries the same parallax code field the home page
+ * runs per section, plus a light that follows you.
  *
- * The grid itself never moves or repaints — it is one static, promoted layer.
- * Only the light moves, and it moves by transform alone, which is the lesson
- * from the previous background: translating a full-viewport gradient on scroll
- * repaints it every frame and halved the frame rate. A small element that only
- * ever transforms costs effectively nothing.
+ * Everything in here moves by transform alone, which is the lesson from an
+ * earlier background: translating a full-viewport gradient on scroll repaints
+ * it every frame and halved the frame rate. Elements that only ever transform
+ * cost effectively nothing.
  *
  * The light tracks the pointer on desktop and the scroll position everywhere,
  * so it is never dead on a phone where there is no cursor.
@@ -95,7 +97,7 @@ export function Backdrop() {
 
   return (
     <div ref={root} className="backdrop" aria-hidden="true">
-      <div className="backdrop-grid" />
+      <CodeWall />
       <div ref={glow} className="backdrop-glow" />
     </div>
   );

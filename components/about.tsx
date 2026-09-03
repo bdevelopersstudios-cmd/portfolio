@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import { CodeField } from "@/components/code-field";
 import { about, profile } from "@/lib/data";
 import { SectionHeading } from "@/components/section-heading";
 
@@ -22,6 +23,7 @@ export function About() {
 
   return (
     <section id="about" className="tone tone-bone border-b border-line-soft py-28 sm:py-36">
+      <CodeField motif="file" align="right" />
       <div className="mx-auto max-w-[1400px] px-6 sm:px-10 lg:px-16">
         <SectionHeading index="00" label="About" title="Ships product, not just code." />
 

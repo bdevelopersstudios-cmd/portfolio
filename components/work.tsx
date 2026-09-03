@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import { CodeField } from "@/components/code-field";
 import { work } from "@/lib/data";
 import { SectionHeading } from "@/components/section-heading";
 
@@ -21,6 +22,7 @@ export function Work() {
 
   return (
     <section id="work" className="tone tone-ink border-b border-line-soft py-28 sm:py-36">
+      <CodeField motif="graph" align="left" />
       <div className="mx-auto max-w-[1400px] px-6 sm:px-10 lg:px-16">
         <SectionHeading
           index="01"

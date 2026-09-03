@@ -264,6 +264,100 @@ html[data-theme="dark"] .aurora-d {
   background: radial-gradient(circle at center, color-mix(in oklab, #a78bfa 32%, transparent), transparent 68%);
 }
 
+
+/* --- Aurora texture layers -------------------------------------------------
+   Soft radial blobs alone read as generic — every gradient background looks
+   like that now. What separates a premium one is texture and iridescence, so
+   three layers sit over the blobs: an angled light sweep, a conic shimmer,
+   and grain.
+
+   Grain is the important one. A perfectly smooth gradient reads as flat
+   colour; a grained one reads as a printed surface, and it also kills the
+   banding that large soft gradients show on 8-bit displays. */
+
+/* A single inline SVG turbulence, rasterised once by the browser and tiled.
+   Cheaper than a filter on a live element, which would re-run every frame. */
+.aurora-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform: translateZ(0);
+  opacity: 0.22;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 220px 220px;
+}
+
+html[data-theme="dark"] .aurora-grain {
+  opacity: 0.3;
+}
+
+/* Angled bands of light. Gives the wash a direction, which is what stops a
+   field of radial blobs looking like a lava lamp. */
+.aurora-sweep {
+  position: absolute;
+  inset: -18%;
+  pointer-events: none;
+  /* Promoted and static. Measured: translating this on scroll halved the
+     frame rate, because a gradient this large repaints rather than
+     composites. The blobs in front already carry the parallax. */
+  transform: translateZ(0);
+  opacity: 0.55;
+  background: repeating-linear-gradient(
+    115deg,
+    transparent 0 8vmax,
+    color-mix(in oklab, var(--accent) 9%, transparent) 8vmax 12vmax,
+    transparent 12vmax 26vmax
+  );
+}
+
+html[data-theme="dark"] .aurora-sweep {
+  opacity: 0.4;
+  background: repeating-linear-gradient(
+    115deg,
+    transparent 0 8vmax,
+    color-mix(in oklab, var(--accent) 14%, transparent) 8vmax 12vmax,
+    transparent 12vmax 26vmax
+  );
+}
+
+/* Conic shimmer — the iridescent, oil-on-water quality that a stack of
+   radial gradients cannot produce on its own. Rotates with scroll. */
+.aurora-shimmer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 108vmax;
+  height: 108vmax;
+  margin: -54vmax 0 0 -54vmax;
+  pointer-events: none;
+  transform: translateZ(0);
+  opacity: 0.35;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    color-mix(in oklab, var(--accent) 26%, transparent) 55deg,
+    transparent 120deg,
+    color-mix(in oklab, #22d3ee 24%, transparent) 190deg,
+    transparent 250deg,
+    color-mix(in oklab, var(--accent-2) 22%, transparent) 310deg,
+    transparent 360deg
+  );
+  -webkit-mask-image: radial-gradient(circle at center, #000 25%, transparent 62%);
+  mask-image: radial-gradient(circle at center, #000 25%, transparent 62%);
+}
+
+html[data-theme="dark"] .aurora-shimmer {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-sweep,
+  .aurora-shimmer {
+    transform: none !important;
+  }
+}
+
 /* Keeps body copy off the strongest part of the wash without flattening it. */
 .aurora-veil {
   position: absolute;

@@ -71,6 +71,7 @@ export function AuroraBackground() {
         const scale = layer.scaleFrom + (layer.scaleTo - layer.scaleFrom) * progress;
         node.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) scale(${scale.toFixed(3)})`;
       });
+
     };
 
     const onScroll = () => {
@@ -91,6 +92,9 @@ export function AuroraBackground() {
 
   return (
     <div ref={root} className="aurora" aria-hidden="true">
+      {/* Static: see the note in globals.css on why it no longer rotates. */}
+      <div className="aurora-shimmer" />
+      <div className="aurora-sweep" />
       {LAYERS.map((layer, i) => (
         <span
           key={layer.className}
@@ -101,6 +105,8 @@ export function AuroraBackground() {
         />
       ))}
       <div className="aurora-veil" />
+      {/* Grain sits last so it textures everything beneath it. */}
+      <div className="aurora-grain" />
     </div>
   );
 }

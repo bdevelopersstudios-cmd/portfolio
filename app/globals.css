@@ -335,3 +335,74 @@ input,
 textarea {
   caret-color: var(--accent);
 }
+
+/* --- Surfaces -------------------------------------------------------------
+   The page sits on a live gradient, and until now every panel was opaque —
+   which hid the one thing making the background interesting. These are
+   translucent and blurred instead, so the aurora reads *through* the content
+   rather than being covered by it.
+
+   backdrop-filter is the expensive property here, so it is confined to
+   panels that are actually large enough to show the effect. */
+.glass {
+  background: color-mix(in oklab, var(--bg-raised) 62%, transparent);
+  backdrop-filter: blur(14px) saturate(1.25);
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+  border: 1px solid color-mix(in oklab, var(--line) 70%, transparent);
+}
+
+html[data-theme="dark"] .glass {
+  background: color-mix(in oklab, var(--bg-raised) 55%, transparent);
+  border-color: color-mix(in oklab, var(--line) 85%, transparent);
+}
+
+/* A hairline that catches the light along the top edge, the way a real pane
+   of glass does. Without it the panels read as flat rectangles again. */
+.glass-lit {
+  position: relative;
+}
+.glass-lit::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--accent) 55%, transparent),
+    transparent
+  );
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Lift on hover — small, and on a spring-ish curve rather than linear, so it
+   feels like a physical object rather than a CSS transition. */
+.lift {
+  transition:
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.3s ease,
+    box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lift:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  box-shadow: 0 22px 60px -30px color-mix(in oklab, var(--accent) 70%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lift:hover {
+    transform: none;
+  }
+}
+
+/* Oversized section numeral. Previously this was 10px grey type doing nothing;
+   at this size it becomes the structural marker the page was missing. */
+.section-index {
+  font-family: var(--font-display);
+  font-size: clamp(3.5rem, 7vw, 6rem);
+  line-height: 0.8;
+  letter-spacing: -0.04em;
+  color: transparent;
+  -webkit-text-stroke: 1px color-mix(in oklab, var(--ink) 22%, transparent);
+}
